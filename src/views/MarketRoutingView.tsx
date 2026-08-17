@@ -120,7 +120,7 @@ export const MarketRoutingView: React.FC<MarketRoutingViewProps> = ({
                       {m.distanceKm} km
                     </td>
                     <td className="py-3.5 px-3 text-right text-rose-600 dark:text-rose-400 font-semibold">
-                      -₹{(m.transportCostPerQuintal + m.handlingChargesPerQuintal).toFixed(1)}
+                      -₹{((m.distanceKm * (m.freightCostPerKmPerQuintal || 1.1)) + (m.hamaliChargesPerQuintal || 25) + ((m.modalPricePerQuintal * (m.mandiCessPercent || 1.5)) / 100)).toFixed(1)}
                     </td>
                     <td className="py-3.5 px-4 text-right">
                       <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">

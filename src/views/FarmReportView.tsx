@@ -82,19 +82,19 @@ export const FarmReportView: React.FC<FarmReportViewProps> = ({ result, language
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
             <div>
               <span className="text-slate-500 block">Farmer / Farm Name:</span>
-              <strong className="text-slate-900">{payload.profile.name}</strong>
+              <strong className="text-slate-900">{payload.farmerProfile?.name || (payload as any).profile?.name || 'Progressive Farmer'}</strong>
             </div>
             <div>
               <span className="text-slate-500 block">Location:</span>
-              <strong className="text-slate-900">{payload.location.district}, {payload.location.state}</strong>
+              <strong className="text-slate-900">{payload.location?.district || (payload as any).farmLocation?.district || 'District'}, {payload.location?.state || (payload as any).farmLocation?.state || 'State'}</strong>
             </div>
             <div>
               <span className="text-slate-500 block">Agro-Climatic Zone:</span>
-              <strong className="text-slate-900">Zone {payload.location.agroClimaticZoneId} ({payload.location.agroClimaticZoneName})</strong>
+              <strong className="text-slate-900">Zone {payload.location?.agroClimaticZoneId || (payload as any).farmLocation?.agroClimaticZoneId || 1} ({payload.location?.agroClimaticZoneName || (payload as any).farmLocation?.agroClimaticZoneName || 'Agro-Climatic Zone'})</strong>
             </div>
             <div>
               <span className="text-slate-500 block">Target Land Allocation:</span>
-              <strong className="text-slate-900">{payload.landAndIrrigation.plannedLandAllocationAcres} Acres ({payload.targetSeason})</strong>
+              <strong className="text-slate-900">{payload.landAndIrrigation?.plannedLandAllocationAcres || 1} Acres ({payload.targetSeason || 'Kharif'})</strong>
             </div>
           </div>
         </div>

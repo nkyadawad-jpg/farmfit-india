@@ -19,6 +19,8 @@ export interface DataMetadata {
   disclaimer?: string;
 }
 
+export type AgroClimaticZoneId = number;
+
 export type Language = 'en' | 'hi';
 
 export type LandholdingCategory = 'Marginal (< 2.5 Acres)' | 'Small (2.5 - 5 Acres)' | 'Semi-Medium (5 - 10 Acres)' | 'Medium (10 - 25 Acres)' | 'Large (> 25 Acres)';
@@ -33,6 +35,17 @@ export interface FarmerProfile {
   workingCapitalBudget: number; // in INR
 }
 
+export type LocationSourceType = 'DEVICE_GPS' | 'MANUAL_COORDINATES' | 'GOOGLE_MAPS_LINK' | 'MAP_PIN' | 'CATALOG_DEFAULT';
+
+export type DataProvenance = 'Farmer entered' | 'Soil test (Lab)' | 'Mapped dataset' | 'Model derived' | 'Data unavailable';
+
+export interface ProvenanceValue<T> {
+  value: T;
+  provenance: DataProvenance;
+  unit?: string;
+  sourceNote?: string;
+}
+
 export interface FarmLocation {
   state: string;
   district: string;
@@ -40,6 +53,11 @@ export interface FarmLocation {
   village?: string;
   latitude?: number;
   longitude?: number;
+  altitudeMeters?: number | null;
+  altitudeStatus?: 'OBTAINED' | 'UNAVAILABLE' | 'FETCHING';
+  altitudeSourceName?: string;
+  locationSource?: LocationSourceType;
+  formattedAddress?: string;
   agroClimaticZoneId: number;
   agroClimaticZoneName: string;
   normalAnnualRainfallMm: number;
@@ -61,14 +79,33 @@ export interface SoilIntelligence {
   texture: 'Sandy Loam' | 'Clay Loam' | 'Heavy Clay' | 'Silty Loam' | 'Sandy';
   hasSoilHealthCard: boolean;
   shcNumber?: string;
+  testDate?: string;
+  laboratoryName?: string;
+  reportReference?: string;
+  uploadedFileName?: string;
   ph: number; // 6.5 - 7.5 is neutral
   organicCarbonPercent: number; // <0.5 Low, 0.5-0.75 Medium, >0.75 High
   availableNitrogenKgPerHa: 'Low (< 280)' | 'Medium (280 - 560)' | 'High (> 560)';
+  nitrogenNumericKgHa?: number;
   availablePhosphorusKgPerHa: 'Low (< 10)' | 'Medium (10 - 25)' | 'High (> 25)';
+  phosphorusNumericKgHa?: number;
   availablePotassiumKgPerHa: 'Low (< 108)' | 'Medium (108 - 280)' | 'High (> 280)';
+  potassiumNumericKgHa?: number;
   zincStatus: 'Deficient (< 0.6 ppm)' | 'Sufficient (>= 0.6 ppm)' | 'Unknown';
+  zincPpm?: number;
+  ironPpm?: number;
+  manganesePpm?: number;
+  copperPpm?: number;
   boronStatus: 'Deficient (< 0.5 ppm)' | 'Sufficient (>= 0.5 ppm)' | 'Unknown';
+  boronPpm?: number;
+  sulphurPpm?: number;
   electricalConductivityDsM: number; // < 1 Normal, > 2 Saline
+  drainage?: 'Good (No waterlogging)' | 'Moderate' | 'Poor (Prone to water stagnation)';
+  soilTypeProvenance?: DataProvenance;
+  phProvenance?: DataProvenance;
+  nutrientsProvenance?: DataProvenance;
+  textureProvenance?: DataProvenance;
+  depthProvenance?: DataProvenance;
   metadata: DataMetadata;
 }
 
@@ -86,9 +123,57 @@ export type IrrigationMethod =
   | 'Furrow / Ridge Irrigation'
   | 'Flood / Basin Irrigation';
 
+export interface FarmCharacteristics {
+  totalFarmAreaDisplay: number;
+  totalFarmAreaUnit: string;
+  proposedCropAreaDisplay: number;
+  currentCrop?: string;
+  previousCrop?: string;
+  proposedPlantingDate?: string;
+  expectedHarvestDate?: string;
+  hasStorage: boolean;
+  storageType?: 'Traditional Grain Bin' | 'On-Farm Covered Shed' | 'Paved Warehouse' | 'None';
+  storageCapacityQuintals?: number;
+  hasColdStorage: boolean;
+  coldStorageDistanceKm?: number;
+  machineryAvailable: string[]; // e.g. ["Tractor", "Power Tiller", "Drip Automation", "Harvester/Thresher"]
+  farmingSystem: 'Conventional' | 'Organic Certified' | 'Natural / Zero Budget (ZBNF)' | 'Integrated Nutrient Management';
+  hasSoilTest: boolean;
+}
+
 export interface LandAndIrrigation {
   totalLandAcres: number;
   plannedLandAllocationAcres: number;
+  selectedLandUnit?: string;
+  originalLandValue?: number;
+  customUnitName?: string;
+  customUnitToAcresRatio?: number;
+  normalizedHectares?: number;
+  normalizedSquareMetres?: number;
+  
+  // Irrigation Specifics
+  irrigatedAreaAcres: number;
+  rainfedAreaAcres: number;
+  hasBorewell: boolean;
+  hasOpenWell: boolean;
+  hasCanal: boolean;
+  hasRiverLift: boolean;
+  hasFarmPond: boolean;
+  hasDrip: boolean;
+  hasSprinkler: boolean;
+  hasFloodOther: boolean;
+  monthsWaterAvailable: number; // 1 to 12
+  irrigationFrequency: 'Daily' | 'Alternate Days' | 'Weekly' | 'Fortnightly' | 'Critical Stages Only' | 'As per Canal Roster';
+  sourceReliabilityRating: 'High (Perennial / Assured)' | 'Moderate (Seasonal Dip)' | 'Low (Unpredictable / Depleted in Summer)';
+  seasonalLimitations: 'None' | 'Summer Scarcity (March-June)' | 'Winter & Summer Dip' | 'Kharif Only Available' | 'Frequent Power Roster Cuts' | 'Salinity Ingress';
+  
+  // Engine Outputs
+  irrigationReliabilityScore100: number; // 0 to 100
+  rainfallDependencyPercent: number; // 0 to 100%
+  irrigatedLandPercent: number; // 0 to 100%
+  rainfedLandPercent: number; // 0 to 100%
+  
+  // Backwards compatibility legacy fields
   landSlope: 'Flat (0-1%)' | 'Gentle Slope (1-3%)' | 'Moderate Slope (> 3%)';
   drainageCapacity: 'Good (No waterlogging)' | 'Moderate' | 'Poor (Prone to water stagnation)';
   primaryWaterSource: WaterSource;
@@ -97,10 +182,257 @@ export interface LandAndIrrigation {
   dailyWaterAvailabilityHours: number; // e.g. 4-8 hours electricity/water
   waterReliabilityScore: number; // 1 to 10
   groundwaterTableDepthFeet?: number;
+  characteristics?: FarmCharacteristics;
   metadata: DataMetadata;
 }
 
-export type CropSeason = 'Kharif' | 'Rabi' | 'Zaid' | 'Annual / Commercial';
+export type CropSeason = 'Kharif' | 'Rabi' | 'Zaid' | 'Annual / Commercial' | 'Perennial' | 'Multiple seasons';
+
+export type CropCategory = 
+  | 'Cereals'
+  | 'Pulses'
+  | 'Oilseeds'
+  | 'Vegetables'
+  | 'Fruits'
+  | 'Spices & Condiments'
+  | 'Fibre Crops'
+  | 'Sugar & Commercial Crops'
+  | 'Fodder Crops'
+  | 'Millets (Shree Anna)'
+  | 'Plantation & Other Crops';
+
+export type CropDataStatus = 
+  | 'OFFICIAL DATA'
+  | 'SOIL TEST'
+  | 'FARMER ENTERED'
+  | 'MODEL ESTIMATE'
+  | 'DATA NOT CONNECTED'
+  | 'DATA UNAVAILABLE';
+
+export interface CropValueProvenance<T> {
+  value: T;
+  unit: string;
+  source: string;
+  sourceDate: string;
+  dataStatus: CropDataStatus;
+}
+
+export interface CropLocalNames {
+  en: string;
+  hi: string;
+  kn?: string; // Kannada
+  mr?: string; // Marathi
+  te?: string; // Telugu
+  ta?: string; // Tamil
+  bn?: string; // Bengali
+  gu?: string; // Gujarati
+  pa?: string; // Punjabi
+  ml?: string; // Malayalam
+  or?: string; // Odia
+  as?: string; // Assamese
+  ur?: string; // Urdu
+  [key: string]: string | undefined;
+}
+
+export interface CropSoilRequirements {
+  soilTypes: SoilOrder[];
+  texture: string[];
+  pHRange: { min: number; max: number; optimalMin: number; optimalMax: number };
+  drainage: string[];
+  soilDepth: string[];
+}
+
+export interface CropClimateRequirements {
+  temperature: { minC: number; maxC: number; optimalMinC: number; optimalMaxC: number };
+  rainfall: { minMm: number; maxMm: number; optimalMm: number };
+  humidity: string;
+  sunlight: string;
+  altitudeMeters?: { min?: number; max?: number };
+}
+
+export interface CropWaterRequirements {
+  waterRequirementMm: number;
+  waterRequirementLevel: 'Low (< 400 mm)' | 'Medium (400 - 800 mm)' | 'High (> 800 mm)' | 'Very High (> 1500 mm)';
+  irrigationRequirement: string;
+  criticalIrrigationStages: string[];
+  droughtTolerance: 'High' | 'Moderate' | 'Low';
+  waterloggingSensitivity: 'High' | 'Moderate' | 'Low';
+}
+
+export interface CropAgronomy {
+  seedRequirement: CropValueProvenance<number | string>;
+  plantingMethod: string;
+  spacing: string;
+  fertilizerRequirements: {
+    rdfKgPerHa?: string;
+    majorNutrients: string;
+    micronutrients: string;
+    note: string;
+  };
+  majorNutrients: string;
+  micronutrients: string;
+}
+
+export interface CropProduction {
+  yieldRange: {
+    min: number;
+    max: number;
+    benchmarkAvg: number;
+    unit: string;
+    source: string;
+    sourceDate: string;
+    dataStatus: CropDataStatus;
+  };
+  unit: string;
+}
+
+export interface CropGeographic {
+  majorProducingStates: string[];
+  majorProducingDistricts: string[];
+  suitableAgroClimaticZones: number[];
+}
+
+export type LandIrrigationProfile = LandAndIrrigation;
+export type SoilProfileRecord = SoilIntelligence & { soilType?: string; ph?: number | { value: number; unit?: string } };
+
+export interface CropMarket {
+  perishability: 'High (Perishable: 1-7 days)' | 'Moderate (Semi-perishable: 1-3 months)' | 'Low (Durable grain/seed: 6-12+ months)' | string;
+  storageRequirement: string;
+  processingPotential: string;
+  majorConsumptionRegions: string[];
+}
+
+export interface CropTrade {
+  exportImportance: 'High' | 'Moderate' | 'Low' | 'Non-Traded';
+  importDependence: 'High (Net Importer)' | 'Self-Sufficient' | 'Net Exporter' | 'Moderate Import';
+}
+
+export interface CropGovernment {
+  MSPApplicable: boolean;
+  mspPrice2024_25?: CropValueProvenance<number | null>;
+  mspPrice2023_24?: CropValueProvenance<number | null>;
+  cacpCostA2FL?: CropValueProvenance<number | null>;
+  cacpCostC2?: CropValueProvenance<number | null>;
+  governmentSchemeLinks: string[];
+}
+
+export interface CropDataSource {
+  sourceName: string;
+  sourceType: 'Government of India' | 'ICAR' | 'State Agricultural University' | 'CACP' | 'National Horticulture Board' | 'Commodity Board' | 'Open Government Data';
+  datasetName: string;
+  url: string;
+  publicationDate: string;
+  retrievalDate: string;
+  geographicCoverage: string;
+  parameter: string;
+  unit: string;
+  license: string;
+  dataStatus: CropDataStatus;
+}
+
+export interface CropMasterRecord {
+  cropId: string;
+  cropName: string;
+  localNames: CropLocalNames;
+  scientificName: string;
+  category: CropCategory;
+  subcategory: string;
+  season: CropSeason;
+  plantingWindow: string;
+  harvestWindow: string;
+  typicalDurationDays: number;
+  durationRangeDays?: { min: number; max: number };
+  soilRequirements: CropSoilRequirements;
+  climateRequirements: CropClimateRequirements;
+  waterRequirements: CropWaterRequirements;
+  agronomy: CropAgronomy;
+  production: CropProduction;
+  geographic: CropGeographic;
+  market: CropMarket;
+  trade: CropTrade;
+  government: CropGovernment;
+  dataConfidenceScore: number; // 0 - 100
+  dataConfidenceLevel: 'High' | 'Moderate' | 'Low';
+  sources: CropDataSource[];
+  // Backwards-compatible fields for calculationEngine
+  id?: string;
+  name?: string;
+  hindiName?: string;
+  botanicalName?: string;
+  durationDays?: number;
+  sowingWindow?: string;
+  waterRequirementMm?: number;
+  optimalSoil?: SoilOrder[];
+  optimalPhMin?: number;
+  optimalPhMax?: number;
+  tempMinC?: number;
+  tempMaxC?: number;
+  seedRateKgPerAcre?: number;
+  avgYieldQuintalPerAcre?: number;
+  yieldRangeQuintalPerAcre?: { min: number; max: number };
+  cacpCostPerQuintalA2?: number;
+  cacpCostPerQuintalA2FL?: number;
+  cacpCostPerQuintalC2?: number;
+  mspNotified?: boolean;
+  mspPrice2024_25?: number;
+  mspPrice2023_24?: number;
+  mspCostA2FLBenchmark?: number;
+  pmfbyInsurancePremiumRatePercent?: number;
+  riskFactors?: {
+    droughtSensitivity: 'Low' | 'Medium' | 'High';
+    waterloggingSensitivity: 'Low' | 'Medium' | 'High';
+    priceVolatilityRisk: 'Low' | 'Medium' | 'High';
+    pestDiseaseRisk: 'Low' | 'Medium' | 'High';
+    storagePerishability: 'Low (Grain/Pulse)' | 'Medium' | 'High (Perishable)';
+  };
+  metadata?: DataMetadata;
+}
+
+export type CropSuitabilityLevel = 
+  | 'HIGHLY SUITABLE'
+  | 'SUITABLE'
+  | 'MODERATELY SUITABLE'
+  | 'MARGINALLY SUITABLE'
+  | 'MARGINAL'
+  | 'UNSUITABLE'
+  | 'INSUFFICIENT DATA';
+
+export interface SuitabilityFactorDetail {
+  factorName: string;
+  score: number;
+  status: 'OPTIMAL' | 'ACCEPTABLE' | 'LIMITING' | 'INCOMPATIBLE' | 'DATA_NOT_CONNECTED';
+  explanation: string;
+}
+
+export interface CropSuitabilityResult {
+  cropId: string;
+  cropName?: string;
+  category?: CropCategory;
+  overallScore: number; // 0 - 100
+  suitabilityLevel: CropSuitabilityLevel;
+  factorScores?: {
+    soilScore?: number;
+    waterScore?: number;
+    climateScore?: number;
+    seasonScore?: number;
+    geographicScore?: number;
+  };
+  factorDetails?: Record<string, SuitabilityFactorDetail>;
+  matchingFactors?: string[];
+  positiveFactors?: string[];
+  limitingFactors: string[];
+  missingDataFlags?: string[];
+  agronomicRecommendations?: string[];
+  soilScore?: number; // 0 - 100
+  waterScore?: number; // 0 - 100
+  climateScore?: number; // 0 - 100
+  seasonScore?: number; // 0 - 100
+  soilCompatibilityNote?: string;
+  waterCompatibilityNote?: string;
+  seasonCompatibilityNote?: string;
+  locationCompatibilityNote?: string;
+  evaluatedAt?: string;
+}
 
 export interface CropDefinition {
   id: string;
@@ -238,13 +570,22 @@ export interface CropEvaluation {
 
 export interface CalculationEnginePayload {
   farmerProfile: FarmerProfile;
-  location: FarmLocation;
+  location?: FarmLocation;
+  farmLocation?: FarmLocation;
   landAndIrrigation: LandAndIrrigation;
-  soil: SoilIntelligence;
+  soil?: SoilIntelligence;
+  soilIntelligence?: SoilIntelligence;
   targetSeason: CropSeason;
   preferredCropIds?: string[];
   excludedCropIds?: string[];
   customDieselRate?: number;
+  engineWeights?: {
+    soilWeight: number;
+    waterWeight: number;
+    climateWeight: number;
+    profitabilityWeight: number;
+    marketMspWeight: number;
+  };
 }
 
 export interface CalculationEngineResult {

@@ -113,7 +113,7 @@ export const MspPolicyView: React.FC<MspPolicyViewProps> = ({ language }) => {
                     </span>
                   </td>
                   <td className="py-3.5 px-3 text-right text-slate-600 dark:text-slate-400">
-                    ₹{r.costOfProductionA2FL.toLocaleString('en-IN')}
+                    ₹{r.cacpProjectedCostA2FL.toLocaleString('en-IN')}
                   </td>
                   <td className="py-3.5 px-3 text-right font-extrabold text-slate-900 dark:text-white">
                     ₹{r.msp2024_25.toLocaleString('en-IN')}
@@ -125,7 +125,7 @@ export const MspPolicyView: React.FC<MspPolicyViewProps> = ({ language }) => {
                     +{r.returnOverCostA2FLPercent}%
                   </td>
                   <td className="py-3.5 px-4 text-slate-600 dark:text-slate-300">
-                    <span className="font-semibold text-slate-800 dark:text-slate-200">{r.procuringAgency}</span>
+                    <span className="font-semibold text-slate-800 dark:text-slate-200">{r.procuringAgencies.join(', ')}</span>
                   </td>
                 </tr>
               ))}

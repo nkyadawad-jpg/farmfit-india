@@ -56,17 +56,35 @@ export const RecommendationsView: React.FC<RecommendationsViewProps> = ({
     );
   }
 
-  const { recommendedCrops, cropsToAvoid, payload } = result;
+  const { recommendedCrops = [], cropsToAvoid = [], payload } = result;
+  
+  const location = payload?.location || (payload as any)?.farmLocation || {
+    district: 'Selected District',
+    state: 'State',
+    agroClimaticZoneId: 1
+  };
+  const land = payload?.landAndIrrigation || {
+    plannedLandAllocationAcres: 1,
+    totalLandAcres: 1,
+    primaryWaterSource: 'Assured Irrigation',
+    irrigationMethod: 'Standard'
+  };
+  const soil = payload?.soil || (payload as any)?.soilIntelligence || {
+    soilOrder: 'Native Soil',
+    ph: 7.0,
+    hasSoilHealthCard: false
+  };
+
   const activeCrop = recommendedCrops.find((c) => c.crop.id === selectedCropId) || recommendedCrops[0] || cropsToAvoid[0];
 
   return (
     <div className="space-y-8 pb-16">
-      {/* Top Banner with Calculation Summary */}
+      {/* CROP SCAN RESULTS Header */}
       <div className="bg-gradient-to-r from-emerald-900 via-emerald-950 to-slate-900 text-white rounded-3xl p-6 sm:p-8 shadow-lg border border-emerald-800/40 flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div className="space-y-2">
+        <div className="space-y-3">
           <div className="flex items-center gap-2">
             <span className="text-[11px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-              Calculation ID: {result.calculationId}
+              CROP SCAN RESULTS &bull; {result.calculationId}
             </span>
             <DataStatusBadge
               metadata={result.metadata}
@@ -76,12 +94,40 @@ export const RecommendationsView: React.FC<RecommendationsViewProps> = ({
           <h1 className="text-2xl sm:text-3xl font-black text-white">
             {language === 'en' ? 'Farm Decision & Crop Suitability Rankings' : 'फार्म निर्णय एवं फसल उपयुक्तता रैंकिंग'}
           </h1>
-          <p className="text-xs sm:text-sm text-emerald-200/90 max-w-2xl">
-            Location: <strong>{payload.location.district}, {payload.location.state}</strong> (Zone {payload.location.agroClimaticZoneId}) &bull; Land: <strong>{payload.landAndIrrigation.plannedLandAllocationAcres} Acres</strong> &bull; Target: <strong>{payload.targetSeason} Season</strong>
-          </p>
+          
+          {/* Farm Baseline Summary Matrix */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+            <div className="p-2.5 rounded-xl bg-white/10 backdrop-blur-xs border border-white/10">
+              <span className="text-[10px] uppercase font-bold text-emerald-200 block">Farm Location</span>
+              <span className="text-xs font-bold text-white truncate block">
+                {location.district || 'District'}, {location.state || 'State'}
+              </span>
+            </div>
+
+            <div className="p-2.5 rounded-xl bg-white/10 backdrop-blur-xs border border-white/10">
+              <span className="text-[10px] uppercase font-bold text-emerald-200 block">Farm Area</span>
+              <span className="text-xs font-bold text-white block">
+                {land.plannedLandAllocationAcres || land.totalLandAcres || 1} Acres Allocated
+              </span>
+            </div>
+
+            <div className="p-2.5 rounded-xl bg-white/10 backdrop-blur-xs border border-white/10">
+              <span className="text-[10px] uppercase font-bold text-emerald-200 block">Irrigation Status</span>
+              <span className="text-xs font-bold text-white truncate block">
+                {land.irrigationMethod || land.primaryWaterSource || 'Standard'}
+              </span>
+            </div>
+
+            <div className="p-2.5 rounded-xl bg-white/10 backdrop-blur-xs border border-white/10">
+              <span className="text-[10px] uppercase font-bold text-emerald-200 block">Soil Data Status</span>
+              <span className="text-xs font-bold text-white block">
+                {soil.hasSoilHealthCard ? 'Verified Lab Test' : 'Baseline Parameters'}
+              </span>
+            </div>
+          </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3 shrink-0">
           <button
             onClick={onNavigateToReport}
             className="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs shadow transition-all flex items-center gap-2 cursor-pointer"
@@ -91,6 +137,19 @@ export const RecommendationsView: React.FC<RecommendationsViewProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Insufficient Data Notice if applicable */}
+      {recommendedCrops.length === 0 && (
+        <div className="p-6 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-center space-y-2">
+          <AlertTriangle className="w-8 h-8 text-amber-600 dark:text-amber-400 mx-auto" />
+          <h3 className="font-bold text-base text-slate-900 dark:text-white">
+            Insufficient data to determine crop suitability.
+          </h3>
+          <p className="text-xs text-slate-600 dark:text-slate-400 max-w-md mx-auto">
+            Please verify your soil parameters, water source, or land allocation to ensure sufficient agronomic information.
+          </p>
+        </div>
+      )}
 
       {/* Top Recommended Crops List */}
       <div className="space-y-4">
@@ -373,28 +432,30 @@ export const RecommendationsView: React.FC<RecommendationsViewProps> = ({
           </div>
 
           {/* Optimal Market Routing Banner */}
-          <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300">
-                <Truck className="w-5 h-5" />
+          {activeCrop.bestMandi && (
+            <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300">
+                  <Truck className="w-5 h-5" />
+                </div>
+                <div className="text-xs">
+                  <span className="font-bold text-slate-900 dark:text-white block">
+                    Best APMC Mandi: {activeCrop.bestMandi.mandiName || 'Nearby APMC Mandi'} ({activeCrop.bestMandi.distanceKm || 0} km)
+                  </span>
+                  <span className="text-slate-500 dark:text-slate-400">
+                    Modal Price: <strong>₹{activeCrop.bestMandi.modalPricePerQuintal || 0}/Qtl</strong> &bull; Net Realization after Freight & Hamali: <strong className="text-emerald-600">₹{(activeCrop.bestMandi.netRealizationPerQuintal || 0).toFixed(1)}/Qtl</strong>
+                  </span>
+                </div>
               </div>
-              <div className="text-xs">
-                <span className="font-bold text-slate-900 dark:text-white block">
-                  Best APMC Mandi: {activeCrop.bestMandi.mandiName} ({activeCrop.bestMandi.distanceKm} km)
-                </span>
-                <span className="text-slate-500 dark:text-slate-400">
-                  Modal Price: <strong>₹{activeCrop.bestMandi.modalPricePerQuintal}/Qtl</strong> &bull; Net Realization after Freight & Hamali: <strong className="text-emerald-600">₹{activeCrop.bestMandi.netRealizationPerQuintal.toFixed(1)}/Qtl</strong>
-                </span>
-              </div>
-            </div>
 
-            <button
-              onClick={onNavigateToRouting}
-              className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow cursor-pointer shrink-0"
-            >
-              Inspect Mandi Comparison Matrix
-            </button>
-          </div>
+              <button
+                onClick={onNavigateToRouting}
+                className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow cursor-pointer shrink-0"
+              >
+                Inspect Mandi Comparison Matrix
+              </button>
+            </div>
+          )}
         </div>
       )}
 

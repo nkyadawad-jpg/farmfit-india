@@ -185,6 +185,24 @@ export interface DistrictCatalogItem {
   longitude: number;
 }
 
+export const INDIAN_STATES: string[] = [
+  "Madhya Pradesh",
+  "Maharashtra",
+  "Punjab",
+  "Haryana",
+  "Uttar Pradesh",
+  "Gujarat",
+  "Rajasthan",
+  "Karnataka",
+  "Telangana",
+  "Andhra Pradesh",
+  "Tamil Nadu",
+  "Bihar",
+  "West Bengal",
+  "Odisha",
+  "Chhattisgarh"
+];
+
 export const INDIAN_DISTRICTS: DistrictCatalogItem[] = [
   // Madhya Pradesh
   { district: "Indore", state: "Madhya Pradesh", zoneId: 8, normalRainfallMm: 950, primarySoil: "Black Cotton Soil (Vertisols)", soilDepth: "Deep (> 50 cm)", defaultPh: 7.6, latitude: 22.7196, longitude: 75.8577 },
@@ -293,6 +311,24 @@ export const DES_METADATA: DataMetadata = {
   sourceUrl: 'https://desagri.gov.in/',
   date: '3rd Advance Estimates of Production of Major Crops 2023-24 / 2024-25',
   disclaimer: 'National crop balance sheets, domestic production, and buffer stock estimates.'
+};
+
+export const SUPPLY_DEMAND_METADATA = DES_METADATA;
+
+export const SOIL_METADATA: DataMetadata = {
+  status: 'LATEST_AVAILABLE',
+  source: 'National Bureau of Soil Survey and Land Use Planning (ICAR-NBSS&LUP) & Soil Health Card Portal',
+  sourceUrl: 'https://soilhealth.dac.gov.in/',
+  date: 'Soil Resource Mapping & SHC Database',
+  disclaimer: 'Soil classifications and nutrient benchmarks referenced from ICAR-NBSS&LUP benchmark soil series.'
+};
+
+export const DEFAULT_ENGINE_WEIGHTS = {
+  soilWeight: 0.25,
+  waterWeight: 0.25,
+  climateWeight: 0.15,
+  profitabilityWeight: 0.20,
+  marketMspWeight: 0.15
 };
 
 // Official 23 MSP Notified Crops (CCEA / CACP 2024-25 Gazette)
@@ -1435,6 +1471,8 @@ export const APMC_MANDI_RECORDS: MandiPriceRecord[] = [
     metadata: AGMARKNET_METADATA
   }
 ];
+
+export const APMC_MANDI_BENCHMARKS = APMC_MANDI_RECORDS;
 
 // National Supply & Demand Balance Sheet (DES MoA&FW 3rd Advance Estimates)
 export const SUPPLY_DEMAND_BALANCES: SupplyDemandBalance[] = [

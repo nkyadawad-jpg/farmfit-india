@@ -1,6 +1,8 @@
 {
   "name": "FARMFIT",
   "description": "India-wide intelligent agricultural decision-support platform for crop selection, planting schedules, soil suitability, market routing, MSP tracking, and profitability risk calculations based on official Government of India benchmarks.",
-  "requestFramePermissions": [],
+  "requestFramePermissions": [
+    "geolocation"
+  ],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
