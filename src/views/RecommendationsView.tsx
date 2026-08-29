@@ -17,7 +17,8 @@ import {
   Truck, 
   FileText, 
   ChevronRight,
-  Info
+  Info,
+  Sparkles
 } from 'lucide-react';
 import { DataStatusBadge } from '../components/DataStatusBadge';
 import { useTranslation } from '../locales/translations';
@@ -27,6 +28,7 @@ interface RecommendationsViewProps {
   onSelectCropForDetails?: (cropId: string) => void;
   onNavigateToReport: () => void;
   onNavigateToRouting: () => void;
+  onNavigateToDecision?: () => void;
   language: Language;
 }
 
@@ -34,6 +36,7 @@ export const RecommendationsView: React.FC<RecommendationsViewProps> = ({
   result,
   onNavigateToReport,
   onNavigateToRouting,
+  onNavigateToDecision,
   language
 }) => {
   const [selectedCropId, setSelectedCropId] = useState<string | null>(null);
@@ -56,7 +59,7 @@ export const RecommendationsView: React.FC<RecommendationsViewProps> = ({
     );
   }
 
-  const { recommendedCrops = [], cropsToAvoid = [], payload } = result;
+  const { recommendedCrops = [], conditionallyRecommendedCrops = [], cropsToAvoid = [], payload } = result;
   
   const location = payload?.location || (payload as any)?.farmLocation || {
     district: 'Selected District',
@@ -75,7 +78,8 @@ export const RecommendationsView: React.FC<RecommendationsViewProps> = ({
     hasSoilHealthCard: false
   };
 
-  const activeCrop = recommendedCrops.find((c) => c.crop.id === selectedCropId) || recommendedCrops[0] || cropsToAvoid[0];
+  const allAvailableCrops = [...recommendedCrops, ...conditionallyRecommendedCrops, ...cropsToAvoid];
+  const activeCrop = allAvailableCrops.find((c) => c.crop.id === selectedCropId) || recommendedCrops[0] || conditionallyRecommendedCrops[0] || cropsToAvoid[0];
 
   return (
     <div className="space-y-8 pb-16">
@@ -128,6 +132,15 @@ export const RecommendationsView: React.FC<RecommendationsViewProps> = ({
         </div>
 
         <div className="flex flex-wrap items-center gap-3 shrink-0">
+          {onNavigateToDecision && (
+            <button
+              onClick={onNavigateToDecision}
+              className="px-5 py-2.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs shadow-md transition-all flex items-center gap-2 cursor-pointer"
+            >
+              <Sparkles className="w-4 h-4 text-slate-950" />
+              <span>Risk-Adjusted Decision Engine</span>
+            </button>
+          )}
           <button
             onClick={onNavigateToReport}
             className="px-5 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs shadow transition-all flex items-center gap-2 cursor-pointer"
@@ -158,9 +171,12 @@ export const RecommendationsView: React.FC<RecommendationsViewProps> = ({
             <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
               <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
               <span>{t.recommendedTitle}</span>
+              <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 font-black">
+                {recommendedCrops.length} Crops
+              </span>
             </h2>
             <p className="text-xs text-slate-600 dark:text-slate-400">
-              Ranked in descending order by FARMFIT Multi-Variable Suitability Index (0-100).
+              Optimal agro-climatic &amp; economic alignment. Ranked by FARMFIT Suitability Index (0-100).
             </p>
           </div>
         </div>
@@ -248,7 +264,7 @@ export const RecommendationsView: React.FC<RecommendationsViewProps> = ({
                 </div>
 
                 <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs font-semibold text-emerald-700 dark:text-emerald-400">
-                  <span>View Full Economic & Agronomic Dossier</span>
+                  <span>View Full Dossier</span>
                   <ChevronRight className="w-4 h-4" />
                 </div>
               </div>
@@ -256,6 +272,126 @@ export const RecommendationsView: React.FC<RecommendationsViewProps> = ({
           })}
         </div>
       </div>
+
+      {/* Conditionally Recommended Crops (Manageable Constraints) */}
+      {conditionallyRecommendedCrops.length > 0 && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5 text-amber-500" />
+                <span>Conditionally Recommended Crops</span>
+                <span className="text-xs px-2.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 font-black">
+                  {conditionallyRecommendedCrops.length} Crops &bull; Manageable
+                </span>
+              </h2>
+              <p className="text-xs text-slate-600 dark:text-slate-400">
+                Viable and profitable if specific field-level water deficits, soil corrections, or inputs are managed.
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            {conditionallyRecommendedCrops.map((evalItem, idx) => {
+              const isSelected = activeCrop?.crop.id === evalItem.crop.id;
+              const scenario = evalItem.baseScenario;
+              const mgmtCost = evalItem.conditionalManagementPlan?.totalAdditionalManagementCostPerAcre || 0;
+
+              return (
+                <div
+                  key={evalItem.crop.id}
+                  onClick={() => setSelectedCropId(evalItem.crop.id)}
+                  className={`p-5 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between ${
+                    isSelected
+                      ? 'border-amber-500 bg-amber-50/20 dark:bg-amber-950/20 ring-2 ring-amber-400 shadow-md'
+                      : 'border-amber-200 dark:border-amber-900/60 bg-white dark:bg-slate-900 hover:border-amber-300'
+                  }`}
+                >
+                  <div className="space-y-3">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="w-5 h-5 rounded-full bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300 text-xs font-black flex items-center justify-center">
+                            #{idx + 1}
+                          </span>
+                          <h3 className="font-bold text-base text-slate-900 dark:text-white">
+                            {evalItem.crop.name}
+                          </h3>
+                        </div>
+                        <span className="text-xs text-slate-500 dark:text-slate-400 font-medium ml-7">
+                          {evalItem.crop.hindiName} &bull; {evalItem.crop.category}
+                        </span>
+                      </div>
+
+                      <div className="text-right">
+                        <div className="text-lg font-black text-amber-600 dark:text-amber-400">
+                          {evalItem.overallSuitabilityScore}
+                          <span className="text-xs font-medium text-slate-400">/100</span>
+                        </div>
+                        <span className="text-[10px] uppercase font-bold text-amber-500 block">
+                          Conditional
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Manageable Note */}
+                    <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/50 border border-amber-200/60 dark:border-amber-800/60 text-xs text-amber-900 dark:text-amber-200">
+                      <span className="font-bold block">Manageable Requirement:</span>
+                      <span className="text-[11px] block mt-0.5">
+                        {evalItem.conditionalManagementPlan?.recommendedInterventions[0]?.action || 'Requires supplemental irrigation or soil amendment.'}
+                      </span>
+                    </div>
+
+                    {/* Key Metrics Grid */}
+                    <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 dark:border-slate-800 text-xs">
+                      <div className="p-2 rounded-lg bg-slate-50 dark:bg-slate-800/50">
+                        <span className="text-[10px] text-slate-500 dark:text-slate-400 block uppercase font-semibold">
+                          Expected Yield
+                        </span>
+                        <span className="font-bold text-slate-800 dark:text-slate-200">
+                          {evalItem.crop.avgYieldQuintalPerAcre} Qtl/Ac
+                        </span>
+                      </div>
+
+                      <div className="p-2 rounded-lg bg-slate-50 dark:bg-slate-800/50">
+                        <span className="text-[10px] text-slate-500 dark:text-slate-400 block uppercase font-semibold">
+                          Net Profit (Base)
+                        </span>
+                        <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                          +₹{scenario.netProfitA2FLPerAcre.toLocaleString('en-IN')}/Ac
+                        </span>
+                      </div>
+
+                      <div className="p-2 rounded-lg bg-slate-50 dark:bg-slate-800/50">
+                        <span className="text-[10px] text-slate-500 dark:text-slate-400 block uppercase font-semibold">
+                          Extra Mitigation
+                        </span>
+                        <span className="font-bold text-amber-700 dark:text-amber-400">
+                          +₹{mgmtCost.toLocaleString('en-IN')}/Ac
+                        </span>
+                      </div>
+
+                      <div className="p-2 rounded-lg bg-slate-50 dark:bg-slate-800/50">
+                        <span className="text-[10px] text-slate-500 dark:text-slate-400 block uppercase font-semibold">
+                          Water Deficit
+                        </span>
+                        <span className="font-bold text-sky-700 dark:text-sky-300">
+                          {evalItem.waterFeasibility?.netWaterDeficitMm || 0} mm
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 pt-3 border-t border-amber-200/60 dark:border-amber-900/60 flex items-center justify-between text-xs font-semibold text-amber-700 dark:text-amber-400">
+                    <span>Inspect Management Plan</span>
+                    <ChevronRight className="w-4 h-4" />
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Selected Crop Deep-Dive Dossier */}
       {activeCrop && (
@@ -266,8 +402,14 @@ export const RecommendationsView: React.FC<RecommendationsViewProps> = ({
                 <h3 className="text-2xl font-black text-slate-900 dark:text-white">
                   {activeCrop.crop.name} ({activeCrop.crop.hindiName})
                 </h3>
-                <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 font-bold">
-                  Rank #{activeCrop.ranking}
+                <span className={`text-xs px-2.5 py-0.5 rounded-full font-bold ${
+                  activeCrop.threeTierVerdict === 'RECOMMENDED'
+                    ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300'
+                    : activeCrop.threeTierVerdict === 'CONDITIONALLY_RECOMMENDED'
+                    ? 'bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-300'
+                    : 'bg-rose-100 dark:bg-rose-950 text-rose-800 dark:text-rose-300'
+                }`}>
+                  {activeCrop.threeTierVerdict?.replace(/_/g, ' ') || `Rank #${activeCrop.ranking}`}
                 </span>
               </div>
               <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
@@ -306,10 +448,19 @@ export const RecommendationsView: React.FC<RecommendationsViewProps> = ({
 
           {/* Scenario Profitability Numbers */}
           {(() => {
-            const sc = scenarioMode === 'worst' ? activeCrop.worstScenario : scenarioMode === 'best' ? activeCrop.bestScenario : activeCrop.baseScenario;
-            const plannedAcres = payload.landAndIrrigation.plannedLandAllocationAcres;
-            const totalFarmProfitA2FL = sc.netProfitA2FLPerAcre * plannedAcres;
-            const totalFarmProfitC2 = sc.netProfitC2PerAcre * plannedAcres;
+            const sc = scenarioMode === 'worst' ? activeCrop?.worstScenario : scenarioMode === 'best' ? activeCrop?.bestScenario : activeCrop?.baseScenario;
+            const plannedAcres = land?.plannedLandAllocationAcres || (payload as any)?.landAndIrrigation?.plannedLandAllocationAcres || (payload as any)?.land?.plannedLandAllocationAcres || 1;
+            
+            if (!sc) {
+              return (
+                <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700/60 text-center text-xs text-slate-500">
+                  Scenario profitability model computing...
+                </div>
+              );
+            }
+
+            const totalFarmProfitA2FL = (sc.netProfitA2FLPerAcre || 0) * plannedAcres;
+            const totalFarmProfitC2 = (sc.netProfitC2PerAcre || 0) * plannedAcres;
 
             return (
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -318,10 +469,10 @@ export const RecommendationsView: React.FC<RecommendationsViewProps> = ({
                     Expected Yield
                   </span>
                   <span className="text-xl font-extrabold text-slate-900 dark:text-white mt-1 block">
-                    {sc.yieldQuintalsPerAcre} Qtl/Acre
+                    {sc.yieldQuintalsPerAcre || 0} Qtl/Acre
                   </span>
                   <span className="text-[11px] text-slate-500">
-                    Total: {(sc.yieldQuintalsPerAcre * plannedAcres).toFixed(1)} Quintals
+                    Total: {((sc.yieldQuintalsPerAcre || 0) * plannedAcres).toFixed(1)} Quintals
                   </span>
                 </div>
 
@@ -330,10 +481,10 @@ export const RecommendationsView: React.FC<RecommendationsViewProps> = ({
                     Gross Revenue
                   </span>
                   <span className="text-xl font-extrabold text-slate-900 dark:text-white mt-1 block">
-                    ₹{sc.grossRevenuePerAcre.toLocaleString('en-IN')}/Ac
+                    ₹{(sc.grossRevenuePerAcre || 0).toLocaleString('en-IN')}/Ac
                   </span>
                   <span className="text-[11px] text-slate-500">
-                    At ₹{sc.expectedPricePerQuintal}/Qtl
+                    At ₹{sc.expectedPricePerQuintal || 0}/Qtl
                   </span>
                 </div>
 
@@ -341,11 +492,11 @@ export const RecommendationsView: React.FC<RecommendationsViewProps> = ({
                   <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 block uppercase">
                     CACP A2+FL Net Profit
                   </span>
-                  <span className={`text-xl font-extrabold mt-1 block ${sc.netProfitA2FLPerAcre >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600'}`}>
-                    ₹{sc.netProfitA2FLPerAcre.toLocaleString('en-IN')}/Ac
+                  <span className={`text-xl font-extrabold mt-1 block ${(sc.netProfitA2FLPerAcre || 0) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600'}`}>
+                    ₹{(sc.netProfitA2FLPerAcre || 0).toLocaleString('en-IN')}/Ac
                   </span>
                   <span className="text-[11px] text-slate-500">
-                    ROI: {sc.roiA2FLPercent}% (A2+FL basis)
+                    ROI: {sc.roiA2FLPercent || 0}% (A2+FL basis)
                   </span>
                 </div>
 
@@ -353,16 +504,99 @@ export const RecommendationsView: React.FC<RecommendationsViewProps> = ({
                   <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 block uppercase">
                     Comprehensive C2 Profit
                   </span>
-                  <span className={`text-xl font-extrabold mt-1 block ${sc.netProfitC2PerAcre >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600'}`}>
-                    ₹{sc.netProfitC2PerAcre.toLocaleString('en-IN')}/Ac
+                  <span className={`text-xl font-extrabold mt-1 block ${(sc.netProfitC2PerAcre || 0) >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600'}`}>
+                    ₹{(sc.netProfitC2PerAcre || 0).toLocaleString('en-IN')}/Ac
                   </span>
                   <span className="text-[11px] text-slate-500">
-                    ROI: {sc.roiC2Percent}% (C2 basis)
+                    ROI: {sc.roiC2Percent || 0}% (C2 basis)
                   </span>
                 </div>
               </div>
             );
           })()}
+
+          {/* Water Feasibility Analysis Card */}
+          {activeCrop.waterFeasibility && (
+            <div className="p-5 rounded-2xl bg-sky-50/70 dark:bg-sky-950/30 border border-sky-200 dark:border-sky-800 space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="font-bold text-sm text-sky-950 dark:text-sky-200 flex items-center gap-2">
+                  <Droplets className="w-4 h-4 text-sky-600 dark:text-sky-400" />
+                  Water Balance &amp; Irrigation Feasibility
+                </h4>
+                <span className="text-[11px] font-bold px-2.5 py-0.5 rounded bg-sky-200 dark:bg-sky-900 text-sky-900 dark:text-sky-200">
+                  {activeCrop.waterFeasibility.feasibilityStatus.replace(/_/g, ' ')}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-sky-100 dark:border-sky-900">
+                  <span className="text-slate-500 block text-[10px] uppercase font-bold">Crop Requirement</span>
+                  <span className="font-black text-slate-900 dark:text-white text-base">
+                    {activeCrop.waterFeasibility.cropWaterRequirementMm} mm
+                  </span>
+                </div>
+                <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-sky-100 dark:border-sky-900">
+                  <span className="text-slate-500 block text-[10px] uppercase font-bold">Natural Available</span>
+                  <span className="font-black text-slate-900 dark:text-white text-base">
+                    {activeCrop.waterFeasibility.naturalMoistureAvailableMm} mm
+                  </span>
+                </div>
+                <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-sky-100 dark:border-sky-900">
+                  <span className="text-slate-500 block text-[10px] uppercase font-bold">Net Deficit</span>
+                  <span className={`font-black text-base ${activeCrop.waterFeasibility.netWaterDeficitMm > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+                    {activeCrop.waterFeasibility.netWaterDeficitMm} mm
+                  </span>
+                </div>
+                <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-sky-100 dark:border-sky-900">
+                  <span className="text-slate-500 block text-[10px] uppercase font-bold">Supplemental Cost</span>
+                  <span className="font-black text-slate-900 dark:text-white text-base">
+                    ₹{activeCrop.waterFeasibility.estimatedSupplementalCostPerAcre.toLocaleString('en-IN')}/Ac
+                  </span>
+                </div>
+              </div>
+
+              <p className="text-xs text-sky-900 dark:text-sky-300 font-medium">
+                {activeCrop.waterFeasibility.feasibilitySummary}
+              </p>
+            </div>
+          )}
+
+          {/* Conditional Management Plan */}
+          {activeCrop.conditionalManagementPlan && activeCrop.conditionalManagementPlan.recommendedInterventions.length > 0 && (
+            <div className="p-5 rounded-2xl bg-amber-50/60 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="font-bold text-sm text-amber-950 dark:text-amber-200 flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400" />
+                  Required Conditional Management Plan
+                </h4>
+                <span className="text-xs font-black text-amber-900 dark:text-amber-300">
+                  Total Interventions: +₹{activeCrop.conditionalManagementPlan.totalAdditionalManagementCostPerAcre.toLocaleString('en-IN')}/acre
+                </span>
+              </div>
+
+              <div className="space-y-2">
+                {activeCrop.conditionalManagementPlan.recommendedInterventions.map((item, idx) => (
+                  <div key={idx} className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-amber-200 dark:border-amber-900/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                    <div>
+                      <span className="font-bold text-slate-900 dark:text-white block">{item.interventionName}</span>
+                      <span className="text-slate-600 dark:text-slate-400 text-[11px]">{item.action} &bull; Required: <strong>{item.requiredInputs.join(', ')}</strong></span>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <span className="font-black text-amber-700 dark:text-amber-400 text-sm">
+                        +₹{item.estimatedCostPerAcre.toLocaleString('en-IN')}/ac
+                      </span>
+                      <span className="block text-[10px] text-slate-400">{item.timing}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="text-[11px] text-amber-900 dark:text-amber-300 italic pt-1">
+                * Note: With these interventions implemented, projected ROI remains viable at <strong>+{activeCrop.conditionalManagementPlan.expectedRoiAfterManagementPercent}%</strong> (A2+FL).
+              </div>
+            </div>
+          )}
+
 
           {/* CACP Cost Decomposition Bar */}
           <div className="p-5 rounded-2xl bg-emerald-50/50 dark:bg-emerald-950/30 border border-emerald-200/60 dark:border-emerald-800/60 space-y-3">
@@ -440,10 +674,15 @@ export const RecommendationsView: React.FC<RecommendationsViewProps> = ({
                 </div>
                 <div className="text-xs">
                   <span className="font-bold text-slate-900 dark:text-white block">
-                    Best APMC Mandi: {activeCrop.bestMandi.mandiName || 'Nearby APMC Mandi'} ({activeCrop.bestMandi.distanceKm || 0} km)
+                    Best APMC Mandi: {activeCrop.bestMandi.mandiName || 'Nearby APMC Mandi'} {activeCrop.bestMandi.distanceKm !== null && activeCrop.bestMandi.distanceKm !== undefined ? `(~${activeCrop.bestMandi.distanceKm} km)` : ''}
                   </span>
                   <span className="text-slate-500 dark:text-slate-400">
-                    Modal Price: <strong>₹{activeCrop.bestMandi.modalPricePerQuintal || 0}/Qtl</strong> &bull; Net Realization after Freight & Hamali: <strong className="text-emerald-600">₹{(activeCrop.bestMandi.netRealizationPerQuintal || 0).toFixed(1)}/Qtl</strong>
+                    Modal Price: <strong>{activeCrop.bestMandi.modalPricePerQuintal !== null && activeCrop.bestMandi.modalPricePerQuintal !== undefined ? `₹${activeCrop.bestMandi.modalPricePerQuintal}/Qtl` : 'DATA UNAVAILABLE'}</strong>
+                    {activeCrop.bestMandi.netRealizationPerQuintal !== null && activeCrop.bestMandi.netRealizationPerQuintal !== undefined ? (
+                      <> &bull; Net Realization: <strong className="text-emerald-600">₹{activeCrop.bestMandi.netRealizationPerQuintal.toFixed(1)}/Qtl</strong></>
+                    ) : (
+                      <> &bull; Net Realization: <span className="italic text-slate-400">NET REALIZATION NOT AVAILABLE</span></>
+                    )}
                   </span>
                 </div>
               </div>

@@ -55,9 +55,9 @@ export const LocationEngine: React.FC<LocationEngineProps> = ({
 
   // States and districts for administrative architecture
   const states = ALL_INDIAN_STATES.map((s) => s.name).sort();
-  const currentDistricts = getDistrictsByState(location.state);
-  const currentDistrictObj = currentDistricts.find((d) => d.name.toLowerCase() === location.district.toLowerCase()) || currentDistricts[0];
-  const currentZone = AGRO_CLIMATIC_ZONES.find((z) => z.id === location.agroClimaticZoneId) || AGRO_CLIMATIC_ZONES[7];
+  const currentDistricts = location.state ? getDistrictsByState(location.state) : [];
+  const currentDistrictObj = location.district ? (currentDistricts.find((d) => d.name.toLowerCase() === location.district.toLowerCase()) || currentDistricts[0]) : undefined;
+  const currentZone = location.agroClimaticZoneId ? (AGRO_CLIMATIC_ZONES.find((z) => z.id === location.agroClimaticZoneId) || AGRO_CLIMATIC_ZONES[7]) : undefined;
   const availableTaluks = currentDistrictObj?.taluks || [];
 
   // Helper to fetch elevation safely
@@ -216,30 +216,67 @@ export const LocationEngine: React.FC<LocationEngineProps> = ({
 
   // Administrative Selectors
   const handleStateSelect = (newStateName: string) => {
-    const districts = getDistrictsByState(newStateName);
-    const defaultDist = districts[0] || { name: 'Capital', zoneId: 8, normalRainfallMm: 900, latitude: 22.7, longitude: 75.8, taluks: [] };
-    const zone = AGRO_CLIMATIC_ZONES.find((z) => z.id === defaultDist.zoneId) || AGRO_CLIMATIC_ZONES[7];
+    setManualLat('');
+    setManualLng('');
+    setManualSuccess(false);
+    setManualError('');
+    setGpsStatus('idle');
+    setGpsMessage('');
+    setLinkStatus('idle');
+    setLinkMessage('');
 
-    setManualLat(defaultDist.latitude.toString());
-    setManualLng(defaultDist.longitude.toString());
+    if (!newStateName) {
+      onChange({
+        ...location,
+        state: '',
+        district: '',
+        taluka: '',
+        village: '',
+        latitude: null,
+        longitude: null,
+        agroClimaticZoneId: undefined,
+        agroClimaticZoneName: undefined,
+        normalAnnualRainfallMm: null,
+        locationSource: 'NOT_SPECIFIED'
+      });
+      return;
+    }
 
+    // STATE CHANGE BEHAVIOR: Clear district, coordinates, zone and weather baseline.
+    // User must explicitly choose a district from the new state's complete list.
     onChange({
       ...location,
       state: newStateName,
-      district: defaultDist.name,
-      taluka: defaultDist.taluks[0] || '',
+      district: '',
+      taluka: '',
       village: '',
-      latitude: defaultDist.latitude,
-      longitude: defaultDist.longitude,
-      agroClimaticZoneId: zone.id,
-      agroClimaticZoneName: zone.name,
-      normalAnnualRainfallMm: defaultDist.normalRainfallMm,
-      locationSource: 'CATALOG_DEFAULT'
+      latitude: null,
+      longitude: null,
+      agroClimaticZoneId: undefined,
+      agroClimaticZoneName: undefined,
+      normalAnnualRainfallMm: null,
+      locationSource: 'NOT_SPECIFIED'
     });
   };
 
   const handleDistrictSelect = (newDistrictName: string) => {
-    const distObj = currentDistricts.find((d) => d.name === newDistrictName) || currentDistricts[0];
+    if (!newDistrictName) {
+      onChange({
+        ...location,
+        district: '',
+        taluka: '',
+        village: '',
+        latitude: null,
+        longitude: null,
+        agroClimaticZoneId: undefined,
+        agroClimaticZoneName: undefined,
+        normalAnnualRainfallMm: null,
+        locationSource: 'NOT_SPECIFIED'
+      });
+      return;
+    }
+
+    const distObj = currentDistricts.find((d) => d.name.toLowerCase() === newDistrictName.toLowerCase());
     if (!distObj) return;
 
     const zone = AGRO_CLIMATIC_ZONES.find((z) => z.id === distObj.zoneId) || AGRO_CLIMATIC_ZONES[7];
@@ -249,7 +286,7 @@ export const LocationEngine: React.FC<LocationEngineProps> = ({
     onChange({
       ...location,
       district: distObj.name,
-      taluka: distObj.taluks[0] || '',
+      taluka: distObj.taluks && distObj.taluks.length > 0 ? distObj.taluks[0] : '',
       latitude: distObj.latitude,
       longitude: distObj.longitude,
       agroClimaticZoneId: zone.id,
@@ -259,24 +296,52 @@ export const LocationEngine: React.FC<LocationEngineProps> = ({
     });
   };
 
-  // Location Status Label
-  const getLocationStatusText = () => {
+  // Location Source Label & Badge
+  const getLocationSourceTag = () => {
     if (!location.latitude || !location.longitude) {
-      return 'Location Pending Selection';
+      return {
+        label: 'LOCATION UNAVAILABLE',
+        variant: 'bg-amber-100 text-amber-900 border-amber-300 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800'
+      };
     }
     switch (location.locationSource) {
       case 'DEVICE_GPS':
-        return 'Location successfully obtained via Browser Geolocation';
+        return {
+          label: 'GPS VERIFIED',
+          variant: 'bg-emerald-100 text-emerald-900 border-emerald-300 dark:bg-emerald-950 dark:text-emerald-300 dark:border-emerald-800'
+        };
       case 'GOOGLE_MAPS_LINK':
-        return 'Location successfully obtained via Google Maps Link';
       case 'MANUAL_COORDINATES':
-        return 'Location configured via Manual Coordinates';
       case 'MAP_PIN':
-        return 'Location selected via Interactive Map Pin Drop';
+        return {
+          label: 'USER SELECTED LOCATION',
+          variant: 'bg-blue-100 text-blue-900 border-blue-300 dark:bg-blue-950 dark:text-blue-300 dark:border-blue-800'
+        };
       case 'CATALOG_DEFAULT':
-        return 'Location set from District Administrative Centroid';
       default:
-        return 'Coordinates Acquired';
+        return {
+          label: 'ADMINISTRATIVE DISTRICT COORDINATE',
+          variant: 'bg-indigo-100 text-indigo-900 border-indigo-300 dark:bg-indigo-950 dark:text-indigo-300 dark:border-indigo-800'
+        };
+    }
+  };
+
+  const getLocationStatusText = () => {
+    if (!location.latitude || !location.longitude) {
+      return 'Please select your State and District or acquire GPS coordinates';
+    }
+    switch (location.locationSource) {
+      case 'DEVICE_GPS':
+        return 'GPS Sensor coordinates verified with high accuracy';
+      case 'GOOGLE_MAPS_LINK':
+        return 'Coordinates extracted directly from Google Maps location';
+      case 'MANUAL_COORDINATES':
+        return 'Coordinates manually configured by user';
+      case 'MAP_PIN':
+        return 'Interactive map pin dropped by user';
+      case 'CATALOG_DEFAULT':
+      default:
+        return `District administrative centroid (${location.district || 'District'}, ${location.state || 'State'})`;
     }
   };
 
@@ -291,8 +356,14 @@ export const LocationEngine: React.FC<LocationEngineProps> = ({
               <span>Locate Your Farm</span>
             </h3>
             <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">
-              Select one of the 3 methods below to determine exact farm coordinates.
+              {getLocationStatusText()}
             </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className={`text-[11px] font-black uppercase tracking-wider px-3 py-1 rounded-full border ${getLocationSourceTag().variant}`}>
+              {getLocationSourceTag().label}
+            </span>
           </div>
         </div>
 
@@ -627,11 +698,11 @@ export const LocationEngine: React.FC<LocationEngineProps> = ({
         </div>
 
         <InteractiveMapPicker
-          latitude={location.latitude || 22.7196}
-          longitude={location.longitude || 75.8577}
+          latitude={location.latitude ?? null}
+          longitude={location.longitude ?? null}
           onLocationSelect={handleMapPinSelected}
           altitudeMeters={location.altitudeMeters}
-          locationLabel={`${location.district || 'District'}, ${location.state || 'State'}`}
+          locationLabel={location.district && location.state ? `${location.district}, ${location.state}` : undefined}
         />
       </div>
 
@@ -659,6 +730,7 @@ export const LocationEngine: React.FC<LocationEngineProps> = ({
               onChange={(e) => handleStateSelect(e.target.value)}
               className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-hidden cursor-pointer"
             >
+              {!location.state && <option value="">-- Select State --</option>}
               {states.map((st) => (
                 <option key={st} value={st}>{st}</option>
               ))}
@@ -675,6 +747,7 @@ export const LocationEngine: React.FC<LocationEngineProps> = ({
               onChange={(e) => handleDistrictSelect(e.target.value)}
               className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-hidden cursor-pointer"
             >
+              {!location.district && <option value="">-- Select District --</option>}
               {currentDistricts.map((d) => (
                 <option key={d.id} value={d.name}>{d.name}</option>
               ))}
@@ -759,7 +832,7 @@ export const LocationEngine: React.FC<LocationEngineProps> = ({
             <div>
               <span className="text-slate-500 font-bold uppercase text-[10px] block">Agro-Climatic Zone</span>
               <strong className="text-slate-900 dark:text-white">
-                Zone {currentZone.id}: {currentZone.name}
+                {currentZone ? `Zone ${currentZone.id}: ${currentZone.name}` : 'Pending Location Selection'}
               </strong>
             </div>
           </div>
@@ -772,7 +845,9 @@ export const LocationEngine: React.FC<LocationEngineProps> = ({
             <div>
               <span className="text-slate-500 font-bold uppercase text-[10px] block">Annual Rainfall Baseline</span>
               <strong className="text-slate-900 dark:text-white">
-                {location.normalAnnualRainfallMm} mm / year (IMD Data)
+                {location.normalAnnualRainfallMm !== null && location.normalAnnualRainfallMm !== undefined
+                  ? `${location.normalAnnualRainfallMm} mm / year (IMD Data)`
+                  : 'Pending Location Selection'}
               </strong>
             </div>
           </div>

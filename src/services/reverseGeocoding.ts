@@ -37,8 +37,8 @@ export async function reverseGeocodeCoordinates(
       const data = await res.json();
       const addr = data.address || {};
 
-      const state = addr.state || addr.state_district || 'Madhya Pradesh';
-      const district = addr.state_district || addr.county || addr.district || addr.city || 'Indore';
+      const state = addr.state || addr.state_district || '';
+      const district = addr.state_district || addr.county || addr.district || addr.city || '';
       const taluka = addr.subdistrict || addr.county || addr.municipality || addr.taluk || '';
       const village = addr.village || addr.hamlet || addr.suburb || addr.neighbourhood || addr.town || '';
 
@@ -66,7 +66,7 @@ function cleanDistrictName(name: string): string {
 function findNearestDistrictInCatalog(lat: number, lng: number): GeocodedLocationResult {
   let minDistance = Infinity;
   let bestDistrict: DistrictAdminItem | null = null;
-  let bestState = 'Madhya Pradesh';
+  let bestState = '';
 
   for (const st of ALL_INDIAN_STATES) {
     for (const dist of st.districts) {
@@ -93,10 +93,10 @@ function findNearestDistrictInCatalog(lat: number, lng: number): GeocodedLocatio
   }
 
   return {
-    state: 'Madhya Pradesh',
-    district: 'Indore',
-    taluka: 'Sanwer',
-    village: 'Hatod',
+    state: '',
+    district: '',
+    taluka: '',
+    village: '',
     source: 'NEAREST_CATALOG_DISTRICT'
   };
 }

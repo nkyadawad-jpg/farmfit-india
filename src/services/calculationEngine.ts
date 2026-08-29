@@ -7,7 +7,11 @@ import {
   ProfitabilityScenario,
   FertilizerPlan,
   SupplyDemandBalance,
-  DataMetadata
+  DataMetadata,
+  FarmLocation,
+  CropMasterRecord,
+  SoilOrder,
+  ThreeTierRecommendationVerdict
 } from '../types';
 import { 
   MASTER_CROPS, 
@@ -16,6 +20,75 @@ import {
   CACP_METADATA_2024_25,
   AGMARKNET_METADATA
 } from '../data/officialData';
+import { COMPLETE_INDIA_CROP_MASTER, getCropById } from '../data/cropMasterIndex';
+import { evaluateCropSuitability } from './cropSuitabilityEngine';
+import { safeNumber, safeDivide, safeRound, safeArray, safeString } from '../utils/safeArithmetic';
+
+/**
+ * Converts a CropMasterRecord to standard CropDefinition for the calculation engine
+ */
+function convertMasterRecordToCropDefinition(record: CropMasterRecord): CropDefinition {
+  const cleanCategory = record.category === 'Millets (Shree Anna)' ? 'Millets (Shree Anna)' :
+    record.category === 'Cereals' ? 'Cereals' :
+    record.category === 'Pulses' ? 'Pulses' :
+    record.category === 'Oilseeds' ? 'Oilseeds' :
+    record.category === 'Fibre Crops' || record.category === 'Sugar & Commercial Crops' ? 'Commercial & Fibres' :
+    'Vegetables & Spices';
+
+  const defaultSoil: SoilOrder[] = [
+    'Alluvial Soil (Entisols / Inceptisols)',
+    'Black Cotton Soil (Vertisols)'
+  ];
+
+  const msp24 = record.government?.mspPrice2024_25?.value || 0;
+  const msp23 = record.government?.mspPrice2023_24?.value || 0;
+  const a2fl = record.government?.cacpCostA2FL?.value || 2900;
+  const c2 = record.government?.cacpCostC2?.value || 3800;
+
+  const seedReqVal = typeof record.agronomy?.seedRequirement?.value === 'number' 
+    ? record.agronomy.seedRequirement.value 
+    : 20;
+
+  return {
+    id: record.cropId,
+    name: record.cropName,
+    hindiName: record.localNames?.hi || record.cropName,
+    botanicalName: record.scientificName || '',
+    category: cleanCategory,
+    season: record.season,
+    durationDays: record.typicalDurationDays || (record.durationRangeDays ? Math.round((record.durationRangeDays.min + record.durationRangeDays.max) / 2) : 100),
+    sowingWindow: record.plantingWindow || 'Standard Sowing Season',
+    harvestWindow: record.harvestWindow || 'Standard Harvest Season',
+    waterRequirementMm: record.waterRequirements?.waterRequirementMm || 500,
+    optimalSoil: (record.soilRequirements?.soilTypes || defaultSoil) as SoilOrder[],
+    optimalPhMin: record.soilRequirements?.pHRange?.min || 6.0,
+    optimalPhMax: record.soilRequirements?.pHRange?.max || 8.0,
+    tempMinC: record.climateRequirements?.temperature?.optimalMinC || record.climateRequirements?.temperature?.minC || 18,
+    tempMaxC: record.climateRequirements?.temperature?.optimalMaxC || record.climateRequirements?.temperature?.maxC || 34,
+    seedRateKgPerAcre: seedReqVal,
+    avgYieldQuintalPerAcre: record.production?.yieldRange?.benchmarkAvg || 12,
+    yieldRangeQuintalPerAcre: {
+      min: record.production?.yieldRange?.min || 8,
+      max: record.production?.yieldRange?.max || 20
+    },
+    cacpCostPerQuintalA2: Math.round(a2fl * 0.72),
+    cacpCostPerQuintalA2FL: a2fl,
+    cacpCostPerQuintalC2: c2,
+    mspNotified: Boolean(record.government?.MSPApplicable),
+    mspPrice2024_25: msp24,
+    mspPrice2023_24: msp23,
+    mspCostA2FLBenchmark: a2fl,
+    pmfbyInsurancePremiumRatePercent: (record.category === 'Sugar & Commercial Crops' || record.category === 'Vegetables' || record.category === 'Fruits' || record.category === 'Spices & Condiments') ? 5.0 : 2.0,
+    riskFactors: {
+      droughtSensitivity: record.riskFactors?.droughtSensitivity || 'Medium',
+      waterloggingSensitivity: record.riskFactors?.waterloggingSensitivity || 'Medium',
+      priceVolatilityRisk: record.riskFactors?.priceVolatilityRisk || 'Medium',
+      pestDiseaseRisk: record.riskFactors?.pestDiseaseRisk || 'Medium',
+      storagePerishability: (record.category === 'Vegetables' || record.category === 'Fruits') ? 'High (Perishable)' : 'Low (Grain/Pulse)'
+    },
+    metadata: CACP_METADATA_2024_25
+  };
+}
 
 /**
  * Calculates customized fertilizer dosage based on crop requirements and Soil Health Card
@@ -73,9 +146,9 @@ function calculateFertilizerPlan(crop: CropDefinition, soilPh: number = 7.0, nit
   if (kStat.includes('High')) mopBags *= 0.8;
 
   // Rounding
-  ureaBags = Math.round(ureaBags * 10) / 10;
-  dapBags = Math.round(dapBags * 10) / 10;
-  mopBags = Math.round(mopBags * 10) / 10;
+  ureaBags = safeRound(ureaBags, 1, 2.0);
+  dapBags = safeRound(dapBags, 1, 1.0);
+  mopBags = safeRound(mopBags, 1, 0.8);
 
   // Subsidized retail prices (Govt. of India notified ceiling rates: Urea ~ Rs 266.50/45kg bag, DAP ~ Rs 1350/50kg bag, MOP ~ Rs 1650/50kg bag)
   const fertilizerCost = Math.round(
@@ -86,7 +159,7 @@ function calculateFertilizerPlan(crop: CropDefinition, soilPh: number = 7.0, nit
     ureaBagsPerAcre: ureaBags,
     dapBagsPerAcre: dapBags,
     mopBagsPerAcre: mopBags,
-    sspBagsPerAcre: Math.round(dapBags * 2.5 * 10) / 10,
+    sspBagsPerAcre: safeRound(dapBags * 2.5, 1, 2.5),
     zincSulphateKgPerAcre: zincKg,
     organicCompostTonnesPerAcre: 2.0,
     totalFertilizerCostPerAcre: fertilizerCost,
@@ -132,47 +205,43 @@ function findBestMandi(crop: CropDefinition, userDistrict: string = 'Local Distr
   const uDist = userDistrict || 'Local District';
   const uState = userState || 'State';
 
-  // Filter for matching crop
-  const mandisForCrop = APMC_MANDI_RECORDS.filter(m => m.cropId === cropId);
+  // Filter for matching crop in official records
+  const mandisForCrop = (APMC_MANDI_RECORDS || []).filter(m => m && m.cropId === cropId);
 
   if (mandisForCrop.length > 0) {
-    // If there's a mandi in the same district or state, prefer it; otherwise pick the one with highest net realization
+    // If there's a mandi in the same district or state, prefer it; otherwise pick the highest modal price
     const localMandi = mandisForCrop.find(m => 
       (m.district && m.district.toLowerCase() === uDist.toLowerCase()) || 
       (m.state && m.state.toLowerCase() === uState.toLowerCase())
     );
     if (localMandi) return localMandi;
 
-    // Return the one with highest net realization
-    return mandisForCrop.reduce((prev, curr) => ((curr.netRealizationPerQuintal || 0) > (prev.netRealizationPerQuintal || 0) ? curr : prev), mandisForCrop[0]);
+    // Return the one with highest modal price
+    return mandisForCrop.reduce((prev, curr) => ((curr.modalPricePerQuintal || 0) > (prev.modalPricePerQuintal || 0) ? curr : prev), mandisForCrop[0]);
   }
 
-  // Fallback synthetic benchmark based on MSP or CACP cost
-  const mspPrice = crop?.mspPrice2024_25 || 2500;
-  const cacpCost = crop?.cacpCostPerQuintalA2FL || 1800;
-  const basePrice = crop?.mspNotified ? Math.round(mspPrice * 1.02) : Math.round(cacpCost * 1.35);
-  const freight = Math.round(25 * 1.1); // approx 25 km
-  const hamali = 28;
-  const cess = Math.round(basePrice * 0.015);
-
+  // If no official APMC market record exists for this crop, do NOT fabricate data
   return {
-    mandiId: `mandi_${cropId}_benchmark`,
-    mandiName: `${uDist} District APMC Main Yard`,
+    mandiId: `mandi_${cropId}_official_unavailable`,
+    mandiName: `${uDist} APMC`,
     district: uDist,
     state: uState,
     cropId: cropId,
     cropName: cropName,
-    distanceKm: 25,
-    minPricePerQuintal: Math.round(basePrice * 0.92),
-    maxPricePerQuintal: Math.round(basePrice * 1.08),
-    modalPricePerQuintal: basePrice,
-    dailyArrivalsTonnes: 650,
+    distanceKm: null,
+    minPricePerQuintal: null,
+    maxPricePerQuintal: null,
+    modalPricePerQuintal: crop?.mspPrice2024_25 || null,
+    dailyArrivalsTonnes: null,
     arrivalTrend: "Stable",
-    freightCostPerKmPerQuintal: 1.1,
-    hamaliChargesPerQuintal: hamali,
+    freightCostPerKmPerQuintal: null,
+    hamaliChargesPerQuintal: null,
     mandiCessPercent: 1.5,
-    netRealizationPerQuintal: Math.max(100, basePrice - freight - hamali - cess),
-    date: "Current Agmarknet Session",
+    netRealizationPerQuintal: null,
+    date: "Official Data Awaiting Daily Bulletin",
+    source: "AGMARKNET — Directorate of Marketing & Inspection, MoA&FW",
+    dataset: "Daily APMC Wholesale Market Rates & Arrivals Bulletin",
+    dataStatus: "DATA UNAVAILABLE",
     metadata: AGMARKNET_METADATA
   };
 }
@@ -181,7 +250,7 @@ function findBestMandi(crop: CropDefinition, userDistrict: string = 'Local Distr
  * Executes the complete FARMFIT 16-variable multi-criteria agricultural decision calculation
  */
 export function runFarmfitEngine(payload: CalculationEnginePayload): CalculationEngineResult {
-  const farmerProfile = payload.farmerProfile || {
+  const farmerProfile = payload.farmerProfile || (payload as any).profile || {
     name: 'Farmer',
     mobileNumber: '',
     experienceYears: 10,
@@ -196,57 +265,67 @@ export function runFarmfitEngine(payload: CalculationEnginePayload): Calculation
     farmMachineryOwned: ['Tractor (Basic)']
   };
 
-  const location = payload.location || payload.farmLocation || {
+  const location: FarmLocation = payload.location || payload.farmLocation || {
     state: 'Maharashtra',
     district: 'Nagpur',
     agroClimaticZoneId: 7,
     agroClimaticZoneName: 'Eastern Plateau and Hills',
     normalAnnualRainfallMm: 1100,
-    elevationMeters: 310,
-    isDroughtProne: false,
-    isFloodProne: false
+    altitudeMeters: 310,
+    metadata: {
+      status: 'LATEST_AVAILABLE',
+      source: 'ICAR / Planning Commission 15 Agro-Climatic Zones',
+      date: '2024'
+    }
   };
 
-  const landAndIrrigation = payload.landAndIrrigation || {
-    totalLandAcres: 5,
-    plannedLandAllocationAcres: 3,
-    landTenureType: 'Owner Cultivated' as const,
-    soilTopography: 'Flat Plain (< 2% slope)' as const,
-    drainageCapacity: 'Moderate (Well drained)' as const,
-    primaryWaterSource: 'Open Dug Well / Borewell' as const,
-    irrigationMethod: 'Drip Irrigation' as const,
-    irrigatedAreaAcres: 4,
-    rainfedAreaAcres: 1,
-    dailyWaterAvailabilityHours: 6,
-    waterSourceSalinity: 'Good Quality (Freshwater)' as const,
-    waterAvailabilityMonths: ['June', 'July', 'August', 'September', 'October', 'November'],
-    waterReliabilityScore: 8,
-    hasDrip: true,
-    hasSprinkler: false,
-    electricityAvailabilityHours: 8,
-    storagePondCapacityLakhLitres: 0
+  const rawLand = payload.landAndIrrigation || (payload as any).land || {};
+  const landAndIrrigation = {
+    totalLandAcres: safeNumber(rawLand.totalLandAcres, 5),
+    plannedLandAllocationAcres: safeNumber(rawLand.plannedLandAllocationAcres, 3),
+    landTenureType: rawLand.landTenureType || ('Owner Cultivated' as const),
+    soilTopography: rawLand.soilTopography || ('Flat Plain (< 2% slope)' as const),
+    drainageCapacity: rawLand.drainageCapacity || ('Moderate (Well drained)' as const),
+    primaryWaterSource: rawLand.primaryWaterSource || ('Open Dug Well / Borewell' as const),
+    irrigationMethod: rawLand.irrigationMethod || ('Drip Irrigation' as const),
+    irrigatedAreaAcres: safeNumber(rawLand.irrigatedAreaAcres, 4),
+    rainfedAreaAcres: safeNumber(rawLand.rainfedAreaAcres, 1),
+    dailyWaterAvailabilityHours: safeNumber(rawLand.dailyWaterAvailabilityHours, 6),
+    waterSourceSalinity: rawLand.waterSourceSalinity || ('Good Quality (Freshwater)' as const),
+    waterAvailabilityMonths: safeArray(rawLand.waterAvailabilityMonths).length > 0 ? rawLand.waterAvailabilityMonths : ['June', 'July', 'August', 'September', 'October', 'November'],
+    waterReliabilityScore: safeNumber(rawLand.waterReliabilityScore, 8),
+    hasDrip: Boolean(rawLand.hasDrip),
+    hasSprinkler: Boolean(rawLand.hasSprinkler),
+    electricityAvailabilityHours: safeNumber(rawLand.electricityAvailabilityHours, 8),
+    storagePondCapacityLakhLitres: safeNumber(rawLand.storagePondCapacityLakhLitres, 0)
   };
 
-  const soil = payload.soil || payload.soilIntelligence || {
-    soilOrder: 'Vertisols (Deep Black Cotton Soils)' as const,
-    soilTextureClass: 'Clay Loam' as const,
-    soilDepth: 'Deep (> 100 cm)' as const,
-    ph: 7.4,
-    ecDsm: 0.45,
-    organicCarbonPercent: 0.65,
-    availableNitrogenKgPerHa: 'Medium (280 - 560 kg/ha)' as const,
-    availablePhosphorusKgPerHa: 'Medium (10 - 25 kg/ha)' as const,
-    availablePotassiumKgPerHa: 'High (> 280 kg/ha)' as const,
-    availableSulphurPpm: 'Sufficient (> 10 ppm)' as const,
-    zincPpm: 'Sufficient (> 0.6 ppm)' as const,
-    ironPpm: 'Sufficient (> 4.5 ppm)' as const,
-    hasSoilHealthCard: true,
-    soilHealthCardDate: '2024-03-15',
-    soilBiologicalActivity: 'Moderate' as const,
-    erosionRisk: 'Low' as const
+  const rawSoil = (payload.soil || (payload as any).soilIntelligence || {}) as any;
+  const soil = {
+    soilOrder: rawSoil.soilOrder || ('Vertisols (Deep Black Cotton Soils)' as const),
+    soilTextureClass: rawSoil.soilTextureClass || rawSoil.texture || ('Clay Loam' as const),
+    soilDepth: rawSoil.soilDepth || ('Deep (> 50 cm)' as const),
+    ph: safeNumber(rawSoil.ph, 7.4),
+    ecDsm: safeNumber(rawSoil.ecDsm || rawSoil.electricalConductivityDsM, 0.45),
+    organicCarbonPercent: safeNumber(rawSoil.organicCarbonPercent, 0.65),
+    availableNitrogenKgPerHa: rawSoil.availableNitrogenKgPerHa || ('Medium (280 - 560 kg/ha)' as const),
+    availablePhosphorusKgPerHa: rawSoil.availablePhosphorusKgPerHa || ('Medium (10 - 25 kg/ha)' as const),
+    availablePotassiumKgPerHa: rawSoil.availablePotassiumKgPerHa || ('High (> 280 kg/ha)' as const),
+    availableSulphurPpm: rawSoil.availableSulphurPpm || ('Sufficient (> 10 ppm)' as const),
+    zincPpm: safeNumber(rawSoil.zincPpm, 0.8),
+    ironPpm: safeNumber(rawSoil.ironPpm, 5.0),
+    hasSoilHealthCard: Boolean(rawSoil.hasSoilHealthCard),
+    soilHealthCardDate: rawSoil.soilHealthCardDate || '2024-03-15',
+    soilBiologicalActivity: rawSoil.soilBiologicalActivity || ('Moderate' as const),
+    erosionRisk: rawSoil.erosionRisk || ('Low' as const),
+    metadata: rawSoil.metadata || {
+      status: 'LATEST_AVAILABLE',
+      source: 'Soil Health Card Scheme / ICAR-NBSS&LUP',
+      date: 'March 2024'
+    }
   };
 
-  const targetSeason = payload.targetSeason || 'Kharif (Monsoon: June - Oct)';
+  const targetSeason = payload.targetSeason || 'Kharif';
 
   const weights = {
     soilWeight: 0.25,
@@ -256,134 +335,132 @@ export function runFarmfitEngine(payload: CalculationEnginePayload): Calculation
     marketMspWeight: 0.15
   };
 
-  // Filter crops for target season or perennial
-  const eligibleCrops = (MASTER_CROPS && MASTER_CROPS.length > 0 ? MASTER_CROPS : []).filter(crop => {
-    if (targetSeason === 'Annual / Commercial') return true;
-    if (crop.season === 'Annual / Commercial') return true;
-    return crop.season === targetSeason;
-  });
+  // Build universal crop candidate list from MASTER_CROPS and COMPLETE_INDIA_CROP_MASTER
+  let cropsToEvaluate: CropDefinition[] = [];
 
-  const cropsToEvaluate = eligibleCrops.length > 0 ? eligibleCrops : MASTER_CROPS;
+  if (payload.preferredCropIds && payload.preferredCropIds.length > 0) {
+    // Farmer selected specific crops
+    const resolvedList: CropDefinition[] = [];
+    for (const cropId of payload.preferredCropIds) {
+      const fromMaster = MASTER_CROPS.find(c => c.id.toLowerCase() === cropId.toLowerCase());
+      if (fromMaster) {
+        resolvedList.push(fromMaster);
+      } else {
+        const fromComplete = getCropById(cropId) || COMPLETE_INDIA_CROP_MASTER.find(c => c.cropId.toLowerCase() === cropId.toLowerCase());
+        if (fromComplete) {
+          resolvedList.push(convertMasterRecordToCropDefinition(fromComplete));
+        }
+      }
+    }
+    cropsToEvaluate = resolvedList.length > 0 ? resolvedList : MASTER_CROPS;
+  } else {
+    // All-Crop Decision Mode / Fresh Profile: Evaluate all eligible crops across the complete universe
+    const allKnownDefinitions: CropDefinition[] = [
+      ...MASTER_CROPS,
+      ...COMPLETE_INDIA_CROP_MASTER
+        .filter(c => !MASTER_CROPS.some(mc => mc.id.toLowerCase() === c.cropId.toLowerCase()))
+        .map(convertMasterRecordToCropDefinition)
+    ];
+
+    const eligible = allKnownDefinitions.filter(crop => {
+      if (!crop) return false;
+      if (targetSeason === 'Annual / Commercial') return true;
+      if (crop.season === 'Annual / Commercial' || crop.season === 'Multiple seasons' || crop.season === 'Perennial') return true;
+      return crop.season === targetSeason;
+    });
+
+    cropsToEvaluate = eligible.length > 0 ? eligible : allKnownDefinitions.slice(0, 15);
+  }
 
   const evaluations: CropEvaluation[] = cropsToEvaluate.map(crop => {
     const keyStrengths: string[] = [];
     const keyRiskWarnings: string[] = [];
     let avoidReason: string | undefined = undefined;
 
-    // 1. Agronomic & Soil Suitability (0 - 100)
-    let agronomicScore = 80;
-    const soilOrderStr = soil.soilOrder ? String(soil.soilOrder) : '';
-    const soilOrderFirstWord = soilOrderStr.split(' ')[0] || '';
-    const isOptimalSoil = (crop.optimalSoil || []).some(s => 
-      s && soilOrderFirstWord && s.toLowerCase().includes(soilOrderFirstWord.toLowerCase())
-    );
-    
-    if (isOptimalSoil) {
-      agronomicScore += 15;
-      keyStrengths.push(`Soil order (${soil.soilOrder || 'Native Soil'}) matches optimal agronomic profile.`);
-    } else {
-      agronomicScore -= 15;
-      keyRiskWarnings.push(`Soil order differs from preferred optimal soil types.`);
-    }
-
-    // pH match
-    const soilPh = typeof soil.ph === 'number' && !isNaN(soil.ph) ? soil.ph : 7.0;
-    const optPhMin = crop.optimalPhMin || 6.0;
-    const optPhMax = crop.optimalPhMax || 8.0;
-
-    if (soilPh >= optPhMin && soilPh <= optPhMax) {
-      agronomicScore += 5;
-    } else if (soilPh < optPhMin - 0.5 || soilPh > optPhMax + 0.5) {
-      agronomicScore -= 25;
-      keyRiskWarnings.push(`Soil pH (${soilPh}) is outside optimal range (${optPhMin} - ${optPhMax}).`);
-      if (soilPh > 8.3 && crop.category === 'Pulses') {
-        avoidReason = "High soil alkalinity (pH > 8.3) severely restricts pulse rhizobium nodulation.";
+    // Synthesize or lookup CropMasterRecord
+    const existingMaster = getCropById(crop.id) || COMPLETE_INDIA_CROP_MASTER.find(c => c.cropId.toLowerCase() === crop.id.toLowerCase());
+    const masterRecord: any = existingMaster || {
+      cropId: crop.id,
+      cropName: crop.name,
+      hindiName: crop.hindiName,
+      scientificName: crop.botanicalName,
+      category: crop.category === 'Millets (Shree Anna)' ? 'Millets (Shree Anna)' :
+        crop.category === 'Cereals' ? 'Cereals' :
+        crop.category === 'Pulses' ? 'Pulses' :
+        crop.category === 'Oilseeds' ? 'Oilseeds' :
+        crop.category === 'Commercial & Fibres' ? 'Commercial & Fibres' : 'Vegetables & Spices',
+      season: crop.season,
+      typicalDurationDays: crop.durationDays,
+      plantingWindow: crop.sowingWindow,
+      harvestWindow: crop.harvestWindow,
+      waterRequirements: {
+        waterRequirementMm: crop.waterRequirementMm || 500,
+        criticalGrowthStages: ['Vegetative', 'Flowering', 'Grain Filling'],
+        droughtSensitivity: crop.riskFactors?.droughtSensitivity || 'Medium',
+        waterloggingSensitivity: crop.riskFactors?.waterloggingSensitivity || 'Medium'
+      },
+      soilRequirements: {
+        soilTypes: safeArray(crop.optimalSoil),
+        pHRange: {
+          min: crop.optimalPhMin || 6.0,
+          max: crop.optimalPhMax || 8.0,
+          optimalMin: crop.optimalPhMin || 6.5,
+          optimalMax: crop.optimalPhMax || 7.5
+        },
+        drainage: 'Well Drained',
+        soilDepth: 'Medium to Deep (> 45 cm)'
+      },
+      agronomicCharacteristics: {
+        optimalTemperatureCelsius: { min: 18, max: 32 }
+      },
+      geographic: {
+        majorProducingStates: ['All India']
       }
+    };
+
+    // Run Advanced Suitability & Feasibility Engine
+    const suitabilityResult = evaluateCropSuitability(masterRecord, {
+      location,
+      land: landAndIrrigation as any,
+      soil: soil as any,
+      targetSeason
+    });
+
+    const agronomicScore = suitabilityResult.factorScores?.soilScore || 70;
+    const waterScore = suitabilityResult.factorScores?.waterScore || 70;
+    const climateScore = suitabilityResult.factorScores?.climateScore || 80;
+
+    // Aggregate Strengths & Warnings
+    if (suitabilityResult.positiveFactors && suitabilityResult.positiveFactors.length > 0) {
+      keyStrengths.push(...suitabilityResult.positiveFactors);
     }
-
-    // Soil Depth vs Rooting Depth
-    const soilDepthStr = String(soil.soilDepth || '');
-    if (soilDepthStr.includes('Shallow') && (crop.id === 'cotton_long' || crop.id === 'sugarcane' || crop.id === 'tur_arhar')) {
-      agronomicScore -= 30;
-      keyRiskWarnings.push("Shallow soil restricts deep taproot penetration.");
-      avoidReason = "Shallow soil depth (< 25 cm) inadequate for deep-rooted perennial/long duration crop.";
+    if (suitabilityResult.limitingFactors && suitabilityResult.limitingFactors.length > 0) {
+      keyRiskWarnings.push(...suitabilityResult.limitingFactors);
     }
-
-    // Drainage vs Waterlogging
-    const drainageStr = String(landAndIrrigation.drainageCapacity || '');
-    if (drainageStr.includes('Poor')) {
-      const waterlogSens = crop.riskFactors?.waterloggingSensitivity || 'Medium';
-      if (waterlogSens === 'High') {
-        agronomicScore -= 30;
-        keyRiskWarnings.push("High risk of root rot & wilt due to poor field drainage.");
-        avoidReason = "High waterlogging susceptibility under poor drainage conditions.";
-      } else if (crop.id === 'paddy_common') {
-        agronomicScore += 10;
-        keyStrengths.push("Poor drainage / water holding capacity is advantageous for standing water in paddy.");
-      }
-    }
-
-    agronomicScore = Math.max(10, Math.min(100, agronomicScore));
-
-    // 2. Water & Irrigation Suitability (0 - 100)
-    let waterScore = 75;
-    const waterSourceStr = String(landAndIrrigation.primaryWaterSource || '');
-    const isRainfed = waterSourceStr.includes('Rainfed') || (!landAndIrrigation.irrigatedAreaAcres && (landAndIrrigation.rainfedAreaAcres || 0) > 0);
-    const cropWaterMm = crop.waterRequirementMm || 500;
-
-    if (isRainfed) {
-      if (cropWaterMm > 600) {
-        waterScore -= 45;
-        keyRiskWarnings.push(`High water requirement (${cropWaterMm} mm) under rainfed conditions without assured irrigation.`);
-        avoidReason = "Crop water requirement exceeds rainfed moisture availability without supplemental irrigation.";
-      } else if (cropWaterMm <= 350) {
-        waterScore += 15;
-        keyStrengths.push(`Low crop water requirement (${cropWaterMm} mm) resilient under rainfed conditions.`);
-      }
-    } else {
-      // Has irrigation
-      const irrigMethodStr = String(landAndIrrigation.irrigationMethod || '');
-      if (irrigMethodStr.includes('Drip') || landAndIrrigation.hasDrip) {
-        waterScore += 15;
-        keyStrengths.push("Micro-irrigation (Drip) ensures 35-45% water savings and high nutrient use efficiency.");
-      }
-      const waterHours = landAndIrrigation.dailyWaterAvailabilityHours || 6;
-      if (waterHours >= 6) {
-        waterScore += 10;
-      } else if (waterHours < 3 && cropWaterMm > 700) {
-        waterScore -= 20;
-        keyRiskWarnings.push("Limited daily pumping hours (< 3 hrs) may create moisture stress during peak flowering.");
-      }
-    }
-
-    waterScore = Math.max(10, Math.min(100, waterScore));
-
-    // 3. Climate & Zone Suitability (0 - 100)
-    let climateScore = 80;
-    if ((location.agroClimaticZoneId || 0) > 0) {
-      climateScore += 10;
-      keyStrengths.push(`Well adapted to Agro-Climatic Zone ${location.agroClimaticZoneId} (${location.agroClimaticZoneName || 'Identified Zone'}).`);
-    }
-    climateScore = Math.max(10, Math.min(100, climateScore));
 
     // 4. Market Routing & Price Benchmarking
     const bestMandi = findBestMandi(crop, location.district || 'Local', location.state || 'State');
     
     // Expected Price: use highest of modal price or MSP for MSP-notified crops
     const mspNotified = Boolean(crop.mspNotified);
-    const mspPrice = crop.mspPrice2024_25 || 2500;
-    const modalPrice = bestMandi?.modalPricePerQuintal || 2400;
+    const mspPrice = safeNumber(crop.mspPrice2024_25, 2500);
+    const modalPrice = safeNumber(bestMandi?.modalPricePerQuintal, 2400);
 
     const expectedBasePrice = mspNotified 
       ? Math.max(modalPrice, mspPrice)
       : modalPrice;
 
-    const baseYield = crop.avgYieldQuintalPerAcre || 10;
+    // Base Economic Yield & Production Costs
+    const baseYield = safeNumber(crop.avgYieldQuintalPerAcre, 10);
     const grossRevenueBase = Math.round(baseYield * expectedBasePrice);
-    const costA2FL = crop.cacpCostPerQuintalA2FL || 1800;
-    const costC2 = crop.cacpCostPerQuintalC2 || 2400;
-    const totalCostA2FL = Math.round(baseYield * costA2FL);
-    const totalCostC2 = Math.round(baseYield * costC2);
+    const costA2FL = safeNumber(crop.cacpCostPerQuintalA2FL, 1800);
+    const costC2 = safeNumber(crop.cacpCostPerQuintalC2, 2400);
+
+    // Incorporate additional management cost from conditional plan (e.g. supplemental pumping, liming, gypsum)
+    const additionalManagementCostPerAcre = suitabilityResult.conditionalManagementPlan?.totalAdditionalManagementCostPerAcre || 0;
+    const totalCostA2FL = Math.round(baseYield * costA2FL) + additionalManagementCostPerAcre;
+    const totalCostC2 = Math.round(baseYield * costC2) + additionalManagementCostPerAcre;
+
     const netProfitA2FL = grossRevenueBase - totalCostA2FL;
     const netProfitC2 = grossRevenueBase - totalCostC2;
     const roiA2FL = totalCostA2FL > 0 ? Math.round((netProfitA2FL / totalCostA2FL) * 100) : 0;
@@ -399,13 +476,13 @@ export function runFarmfitEngine(payload: CalculationEnginePayload): Calculation
       netProfitC2PerAcre: netProfitC2,
       roiA2FLPercent: roiA2FL,
       roiC2Percent: roiC2,
-      costOfProductionPerQuintalA2FL: costA2FL,
-      costOfProductionPerQuintalC2: costC2
+      costOfProductionPerQuintalA2FL: baseYield > 0 ? Math.round(totalCostA2FL / baseYield) : costA2FL,
+      costOfProductionPerQuintalC2: baseYield > 0 ? Math.round(totalCostC2 / baseYield) : costC2
     };
 
     // Worst Case (25% yield drop, lowest mandi realization / MSP floor)
-    const worstYield = Math.max(1, Math.round(baseYield * 0.75 * 10) / 10);
-    const minMandiPrice = bestMandi?.minPricePerQuintal || Math.round(modalPrice * 0.9);
+    const worstYield = Math.max(1, safeRound(baseYield * 0.75, 1, 1));
+    const minMandiPrice = safeNumber(bestMandi?.minPricePerQuintal, Math.round(modalPrice * 0.9));
     const worstPrice = mspNotified ? mspPrice : minMandiPrice;
     const grossRevenueWorst = Math.round(worstYield * worstPrice);
     const totalCostWorstA2FL = Math.round(totalCostA2FL * 0.92);
@@ -428,8 +505,8 @@ export function runFarmfitEngine(payload: CalculationEnginePayload): Calculation
     };
 
     // Best Case (20% yield gain, peak mandi realization)
-    const bestYield = Math.max(1, Math.round(baseYield * 1.22 * 10) / 10);
-    const maxMandiPrice = bestMandi?.maxPricePerQuintal || Math.round(modalPrice * 1.1);
+    const bestYield = Math.max(1, safeRound(baseYield * 1.22, 1, 1));
+    const maxMandiPrice = safeNumber(bestMandi?.maxPricePerQuintal, Math.round(modalPrice * 1.1));
     const bestPrice = Math.round(maxMandiPrice * 1.02);
     const grossRevenueBest = Math.round(bestYield * bestPrice);
     const totalCostBestA2FL = Math.round(totalCostA2FL * 1.08);
@@ -452,9 +529,9 @@ export function runFarmfitEngine(payload: CalculationEnginePayload): Calculation
     };
 
     // Break-even yield
-    const breakEvenYield = expectedBasePrice > 0 ? Math.round((totalCostA2FL / expectedBasePrice) * 10) / 10 : 0;
+    const breakEvenYield = expectedBasePrice > 0 ? safeRound(totalCostA2FL / expectedBasePrice, 1, 0) : 0;
     const marginOfSafetyMsp = (mspNotified && mspPrice > 0)
-      ? Math.round(((expectedBasePrice - mspPrice) / mspPrice) * 100)
+      ? safeRound(((expectedBasePrice - mspPrice) / mspPrice) * 100, 0, 0)
       : 0;
 
     // 5. Profitability & Working Capital Score (0 - 100)
@@ -466,14 +543,16 @@ export function runFarmfitEngine(payload: CalculationEnginePayload): Calculation
     else profitabilityScore = 30;
 
     // Check farmer working capital budget constraint
-    const allocatedAcres = landAndIrrigation.plannedLandAllocationAcres || 1;
+    const allocatedAcres = safeNumber(landAndIrrigation.plannedLandAllocationAcres, 1);
     const totalCapitalRequired = totalCostA2FL * allocatedAcres;
-    const farmerBudget = farmerProfile.workingCapitalBudget || 150000;
+    const rawBudget = farmerProfile.workingCapitalBudget;
+    const farmerBudget = typeof rawBudget === 'number' && !isNaN(rawBudget) && isFinite(rawBudget) ? rawBudget : 0;
+    
     if (farmerBudget > 0 && totalCapitalRequired > farmerBudget) {
-      profitabilityScore -= 20;
-      keyRiskWarnings.push(`Estimated working capital requirement (₹${totalCapitalRequired.toLocaleString('en-IN')}) exceeds farmer budget (₹${farmerBudget.toLocaleString('en-IN')}).`);
+      profitabilityScore = Math.max(0, profitabilityScore - 20);
+      keyRiskWarnings.push(`Working capital requirement (₹${totalCapitalRequired.toLocaleString('en-IN')}) exceeds farmer budget (₹${farmerBudget.toLocaleString('en-IN')}).`);
     } else if (farmerBudget > 0) {
-      keyStrengths.push(`Working capital requirement is well within the allocated budget.`);
+      keyStrengths.push(`Working capital requirement (₹${totalCapitalRequired.toLocaleString('en-IN')}) is within the allocated budget (₹${farmerBudget.toLocaleString('en-IN')}).`);
     }
 
     // 6. Market & MSP Safety Score (0 - 100)
@@ -490,7 +569,7 @@ export function runFarmfitEngine(payload: CalculationEnginePayload): Calculation
     }
 
     // Check Supply-Demand status
-    const supplyDemand = SUPPLY_DEMAND_BALANCES.find(s => s.cropId === crop.id) || {
+    const supplyDemand = (SUPPLY_DEMAND_BALANCES || []).find(s => s && s.cropId === crop.id) || {
       cropId: crop.id,
       cropName: crop.name,
       season: "2024-25 Season",
@@ -514,15 +593,14 @@ export function runFarmfitEngine(payload: CalculationEnginePayload): Calculation
     } else if (marketBalanceStr.includes('Surplus')) {
       marketSafetyScore -= 15;
       keyRiskWarnings.push("National surplus inventory may exert downward pressure on spot market prices.");
-      if (!mspNotified && roiA2FL < 20) {
-        avoidReason = "Expected national oversupply combined with lack of statutory MSP procurement support.";
-      }
     }
 
     marketSafetyScore = Math.max(10, Math.min(100, marketSafetyScore));
 
     // 7. Composite Risk Score (0 - 100, where 0 is safest)
     let compositeRiskScore = 30;
+    const isRainfed = String(landAndIrrigation.primaryWaterSource || '').includes('Rainfed');
+    const drainageStr = String(landAndIrrigation.drainageCapacity || '');
     const rf = crop.riskFactors || {
       droughtSensitivity: 'Medium',
       waterloggingSensitivity: 'Medium',
@@ -530,11 +608,11 @@ export function runFarmfitEngine(payload: CalculationEnginePayload): Calculation
       pestDiseaseRisk: 'Medium',
       storagePerishability: 'Medium'
     };
-    if (rf.droughtSensitivity === 'High' && isRainfed) compositeRiskScore += 30;
-    if (rf.waterloggingSensitivity === 'High' && drainageStr.includes('Poor')) compositeRiskScore += 25;
+    if (rf.droughtSensitivity === 'High' && isRainfed) compositeRiskScore += 20;
+    if (rf.waterloggingSensitivity === 'High' && drainageStr.includes('Poor')) compositeRiskScore += 15;
     if (rf.priceVolatilityRisk === 'High') compositeRiskScore += 15;
     if (rf.pestDiseaseRisk === 'High') compositeRiskScore += 10;
-    if (String(rf.storagePerishability || '').includes('High')) compositeRiskScore += 15;
+    if (String(rf.storagePerishability || '').includes('High')) compositeRiskScore += 10;
     if (mspNotified) compositeRiskScore -= 15;
     compositeRiskScore = Math.max(5, Math.min(95, compositeRiskScore));
 
@@ -547,17 +625,29 @@ export function runFarmfitEngine(payload: CalculationEnginePayload): Calculation
       (marketSafetyScore * weights.marketMspWeight)
     );
 
-    // If explicit avoid reason triggered, reduce overall score
-    if (avoidReason) {
+    // 9. Determine 3-Tier Recommendation Verdict & Hard Avoid Reason
+    let recommendationVerdict: ThreeTierRecommendationVerdict = suitabilityResult.recommendationVerdict || 'RECOMMENDED';
+    let hardConstraintReason: string | undefined = suitabilityResult.hardConstraintReason;
+
+    // If hard constraint or severe economic infeasibility
+    if (recommendationVerdict === 'AVOID') {
       overallSuitabilityScore = Math.min(overallSuitabilityScore, 42);
+      avoidReason = hardConstraintReason || "Fundamental agro-climatic or rooting depth constraint cannot be mitigated.";
+    } else if (recommendationVerdict === 'DATA_INSUFFICIENT') {
+      avoidReason = "Insufficient farm baseline parameters to evaluate suitability.";
+    } else if (roiA2FL < -10) {
+      recommendationVerdict = 'AVOID';
+      avoidReason = "Negative projected operating margin under baseline CACP cost structure.";
+      overallSuitabilityScore = Math.min(overallSuitabilityScore, 40);
     }
+
+    const isRecommended = recommendationVerdict === 'RECOMMENDED' || recommendationVerdict === 'CONDITIONALLY_RECOMMENDED';
 
     // Confidence Score based on soil test availability and data freshness
     const confidenceScore = soil.hasSoilHealthCard ? 92 : 78;
 
-    const isRecommended = !avoidReason && overallSuitabilityScore >= 60;
-
     // Generate fertilizer plan
+    const soilPh = safeNumber(soil.ph, 7.0);
     const fertilizerPlan = calculateFertilizerPlan(
       crop, 
       soilPh, 
@@ -577,8 +667,13 @@ export function runFarmfitEngine(payload: CalculationEnginePayload): Calculation
       compositeRiskScore,
       confidenceScore,
       isRecommended,
+      recommendationVerdict,
       ranking: 0, // Assigned after sorting
       avoidReason,
+      hardConstraintReason,
+      constraints: suitabilityResult.constraints,
+      waterFeasibility: suitabilityResult.waterFeasibility,
+      conditionalManagementPlan: suitabilityResult.conditionalManagementPlan,
       worstScenario,
       baseScenario,
       bestScenario,
@@ -599,24 +694,40 @@ export function runFarmfitEngine(payload: CalculationEnginePayload): Calculation
     evalItem.ranking = index + 1;
   });
 
-  const recommendedCrops = evaluations.filter(e => e.isRecommended);
-  const cropsToAvoid = evaluations.filter(e => !e.isRecommended);
-  const topAlternativeCrops = recommendedCrops.slice(1, 4);
+  const recommendedCrops = evaluations.filter(e => e.recommendationVerdict === 'RECOMMENDED');
+  const conditionallyRecommendedCrops = evaluations.filter(e => e.recommendationVerdict === 'CONDITIONALLY_RECOMMENDED');
+  const cropsToAvoid = evaluations.filter(e => e.recommendationVerdict === 'AVOID');
+  const dataInsufficientCrops = evaluations.filter(e => e.recommendationVerdict === 'DATA_INSUFFICIENT');
+  
+  const viableCrops = [...recommendedCrops, ...conditionallyRecommendedCrops];
+  const topAlternativeCrops = viableCrops.slice(1, 4);
 
-  // Farm total calculations based on top recommended crop
-  const topCrop = recommendedCrops[0] || evaluations[0];
-  const allocatedLand = landAndIrrigation.plannedLandAllocationAcres || 1;
-  const totalFarmRevenueBase = topCrop ? topCrop.baseScenario.grossRevenuePerAcre * allocatedLand : 0;
-  const totalFarmCostA2FL = topCrop ? topCrop.baseScenario.totalCostA2FLPerAcre * allocatedLand : 0;
-  const totalFarmNetProfitBase = topCrop ? topCrop.baseScenario.netProfitA2FLPerAcre * allocatedLand : 0;
+  // Farm total calculations based on top viable crop
+  const topCrop = viableCrops[0] || evaluations[0];
+  const allocatedLand = safeNumber(landAndIrrigation.plannedLandAllocationAcres, 1);
+  const totalFarmRevenueBase = topCrop?.baseScenario ? topCrop.baseScenario.grossRevenuePerAcre * allocatedLand : 0;
+  const totalFarmCostA2FL = topCrop?.baseScenario ? topCrop.baseScenario.totalCostA2FLPerAcre * allocatedLand : 0;
+  const totalFarmNetProfitBase = topCrop?.baseScenario ? topCrop.baseScenario.netProfitA2FLPerAcre * allocatedLand : 0;
+
+  const normalizedPayload: CalculationEnginePayload = {
+    ...payload,
+    farmerProfile,
+    location,
+    farmLocation: location,
+    landAndIrrigation: landAndIrrigation as any,
+    soil: soil as any,
+    soilIntelligence: soil as any
+  };
 
   return {
     calculationId: `FF-${Date.now().toString().slice(-6)}`,
     timestamp: new Date().toISOString(),
-    payload,
+    payload: normalizedPayload,
     evaluations,
     recommendedCrops,
+    conditionallyRecommendedCrops,
     cropsToAvoid,
+    dataInsufficientCrops,
     topAlternativeCrops,
     totalFarmRevenueBaseEstimate: totalFarmRevenueBase,
     totalFarmCostA2FLEstimate: totalFarmCostA2FL,
@@ -624,7 +735,7 @@ export function runFarmfitEngine(payload: CalculationEnginePayload): Calculation
     engineWeights: weights,
     metadata: {
       status: 'MODEL_ESTIMATE',
-      source: 'FARMFIT Decision Engine v2.4 (CACP Cost Standard + Agmarknet Logistics Model)',
+      source: 'FARMFIT Decision Engine v2.5 (3-Tier Constraint Management + CACP Cost Standard)',
       date: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
       disclaimer: 'Engine calculations synthesize official CACP cultivation cost standards, Agmarknet modal prices, and ICAR agro-climatic rules.'
     }

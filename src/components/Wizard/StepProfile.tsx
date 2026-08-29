@@ -49,6 +49,9 @@ interface StepProfileProps {
   onNext: () => void;
   onBack?: () => void;
   language: Language;
+  isDemoModeActive?: boolean;
+  onLoadDemoProfile?: () => void;
+  onClearToBlankProfile?: () => void;
 }
 
 export const StepProfile: React.FC<StepProfileProps> = ({
@@ -64,7 +67,10 @@ export const StepProfile: React.FC<StepProfileProps> = ({
   onSeasonChange,
   onNext,
   onBack,
-  language
+  language,
+  isDemoModeActive = false,
+  onLoadDemoProfile,
+  onClearToBlankProfile
 }) => {
   const categories: LandholdingCategory[] = [
     'Marginal (< 2.5 Acres)',
@@ -102,6 +108,18 @@ export const StepProfile: React.FC<StepProfileProps> = ({
 
   // Handle District selection update
   const handleDistrictChange = (districtName: string) => {
+    if (!districtName) {
+      onLocationChange({
+        ...location,
+        district: '',
+        latitude: null,
+        longitude: null,
+        agroClimaticZoneId: undefined as any,
+        agroClimaticZoneName: '',
+        normalAnnualRainfallMm: undefined as any
+      });
+      return;
+    }
     const matched = INDIAN_DISTRICTS.find(d => d.district === districtName);
     if (matched) {
       const zone = AGRO_CLIMATIC_ZONES.find(z => z.id === matched.zoneId) || AGRO_CLIMATIC_ZONES[7];
@@ -113,13 +131,73 @@ export const StepProfile: React.FC<StepProfileProps> = ({
         longitude: matched.longitude,
         agroClimaticZoneId: zone.id,
         agroClimaticZoneName: zone.name,
-        normalAnnualRainfallMm: matched.normalRainfallMm
+        normalAnnualRainfallMm: matched.normalRainfallMm,
+        locationSource: 'CATALOG_DEFAULT'
       });
     }
   };
 
   return (
     <div className="space-y-8 pb-12" id="farmer-profile-page">
+      {/* DEMO / BLANK PROFILE CONTROLS BANNER */}
+      <div className={`rounded-3xl p-5 border shadow-xs transition-all ${
+        isDemoModeActive 
+          ? 'bg-amber-50 dark:bg-amber-950/40 border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-200' 
+          : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800'
+      }`}>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className={`p-2.5 rounded-2xl shrink-0 ${
+              isDemoModeActive 
+                ? 'bg-amber-200 dark:bg-amber-900 text-amber-900 dark:text-amber-100' 
+                : 'bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300'
+            }`}>
+              <Sparkles className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-black uppercase tracking-wider">
+                  {isDemoModeActive ? 'DEMO PROFILE ACTIVE' : 'PRODUCTION INITIALIZATION: BLANK PROFILE'}
+                </span>
+                {isDemoModeActive && (
+                  <span className="px-2 py-0.5 rounded-md bg-amber-200 dark:bg-amber-900 text-amber-900 dark:text-amber-100 text-[10px] font-extrabold uppercase">
+                    SAMPLE DATA
+                  </span>
+                )}
+              </div>
+              <p className="text-xs mt-0.5 opacity-80">
+                {isDemoModeActive 
+                  ? 'Currently running with sample demo farmer (Ramesh Patel • Indore, MP). Dependent modules use this demo location.' 
+                  : 'Starting with a clean, blank profile. Enter your farm details or load sample demo data to test system capabilities.'}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            {isDemoModeActive ? (
+              <button
+                type="button"
+                id="btn-clear-to-blank-profile"
+                onClick={onClearToBlankProfile}
+                className="px-4 py-2 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold text-xs hover:bg-slate-800 cursor-pointer shadow-xs transition-all flex items-center gap-1.5"
+              >
+                <span>Clear to Blank Profile</span>
+              </button>
+            ) : (
+              <button
+                type="button"
+                id="btn-load-sample-demo-profile"
+                onClick={onLoadDemoProfile}
+                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs cursor-pointer shadow-xs transition-all flex items-center gap-1.5"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Load Sample Demo Profile</span>
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* 1. Page Header with Official Badge */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 sm:p-8 shadow-xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 dark:border-slate-800 pb-5">
@@ -129,13 +207,13 @@ export const StepProfile: React.FC<StepProfileProps> = ({
                 1
               </span>
               <h1 className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white tracking-tight uppercase">
-                FARMER PROFILE
+                FARMER DETAILS
               </h1>
             </div>
             <p className="text-xs sm:text-sm text-slate-600 dark:text-slate-300">
               {language === 'en'
-                ? 'Comprehensive Agricultural Baseline & Farm Parameters for Precision CACP Recommendations'
-                : 'सटीक कृषि-आर्थिक व सीएसीपी सिफारिशों हेतु संपूर्ण किसान प्रोफ़ाइल एवं कृषि आधार'}
+                ? 'Start by entering the basic information about the farmer and farm.'
+                : 'किसान एवं खेत की मूलभूत जानकारी दर्ज करके निर्णय प्रक्रिया प्रारंभ करें।'}
             </p>
           </div>
 
@@ -151,19 +229,25 @@ export const StepProfile: React.FC<StepProfileProps> = ({
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-5">
           <div className="p-3 rounded-xl bg-emerald-50/70 dark:bg-emerald-950/40 border border-emerald-100 dark:border-emerald-900/50">
             <span className="text-[10px] font-bold text-emerald-800 dark:text-emerald-300 uppercase block">Farmer</span>
-            <span className="text-xs font-black text-slate-900 dark:text-white truncate block">{farmer.name}</span>
+            <span className="text-xs font-black text-slate-900 dark:text-white truncate block">{farmer.name || 'Not Specified'}</span>
           </div>
           <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60">
             <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 uppercase block">Location</span>
-            <span className="text-xs font-black text-slate-900 dark:text-white truncate block">{location.district}, {location.state}</span>
+            <span className="text-xs font-black text-slate-900 dark:text-white truncate block">
+              {location.district && location.state ? `${location.district}, ${location.state}` : 'Location Not Set'}
+            </span>
           </div>
           <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60">
             <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 uppercase block">Land Holding</span>
-            <span className="text-xs font-black text-slate-900 dark:text-white truncate block">{land.totalLandAcres} Acres</span>
+            <span className="text-xs font-black text-slate-900 dark:text-white truncate block">
+              {land.totalLandAcres > 0 ? `${land.totalLandAcres} Acres` : 'Not Set'}
+            </span>
           </div>
           <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700/60">
             <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300 uppercase block">Water Source</span>
-            <span className="text-xs font-black text-slate-900 dark:text-white truncate block">{land.primaryWaterSource.split(' ')[0]}</span>
+            <span className="text-xs font-black text-slate-900 dark:text-white truncate block">
+              {land.primaryWaterSource ? land.primaryWaterSource.split(' ')[0] : 'Not Set'}
+            </span>
           </div>
         </div>
       </div>
@@ -294,30 +378,85 @@ export const StepProfile: React.FC<StepProfileProps> = ({
           </div>
 
           {/* Working Capital Budget */}
-          <div className="md:col-span-2">
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
+          <div className="md:col-span-2 space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <label htmlFor="input-working-capital" className="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300">
                 <IndianRupee className="inline w-3.5 h-3.5 mr-1 text-emerald-600" />
                 Available Working Capital Budget
               </label>
-              <span className="text-sm font-black text-emerald-700 dark:text-emerald-400">
-                ₹{farmer.workingCapitalBudget.toLocaleString('en-IN')}
+              <span className="text-sm font-black text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-3 py-1 rounded-lg border border-emerald-200 dark:border-emerald-800">
+                {farmer.workingCapitalBudget > 0 
+                  ? (farmer.workingCapitalBudget >= 10000000 
+                      ? `₹${farmer.workingCapitalBudget.toLocaleString('en-IN')} (${(farmer.workingCapitalBudget / 10000000).toLocaleString('en-IN', { maximumFractionDigits: 2 })} Cr)`
+                      : farmer.workingCapitalBudget >= 100000 
+                      ? `₹${farmer.workingCapitalBudget.toLocaleString('en-IN')} (${(farmer.workingCapitalBudget / 100000).toLocaleString('en-IN', { maximumFractionDigits: 2 })} Lakh)`
+                      : `₹${farmer.workingCapitalBudget.toLocaleString('en-IN')}`)
+                  : '₹0 (Unspecified / No Limit)'}
               </span>
             </div>
-            <input
-              type="range"
-              min={10000}
-              max={500000}
-              step={5000}
-              id="range-working-capital"
-              value={farmer.workingCapitalBudget}
-              onChange={(e) => onFarmerChange({ ...farmer, workingCapitalBudget: Number(e.target.value) })}
-              className="w-full accent-emerald-600 cursor-pointer"
-            />
-            <div className="flex justify-between text-[11px] text-slate-600 dark:text-slate-300 mt-1 font-medium">
-              <span>₹10,000 (Marginal)</span>
-              <span>₹2,50,000</span>
-              <span>₹5,00,000+ (Commercial)</span>
+
+            {/* Direct Customized Numeric Input with INR formatting */}
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400 font-bold text-sm">
+                ₹
+              </div>
+              <input
+                type="number"
+                id="input-working-capital"
+                min={0}
+                max={1000000000}
+                step={5000}
+                placeholder="Enter customized budget (e.g. 500000, 2500000, 10000000)"
+                value={farmer.workingCapitalBudget > 0 ? farmer.workingCapitalBudget : ''}
+                onChange={(e) => {
+                  const rawVal = e.target.value;
+                  if (rawVal === '') {
+                    onFarmerChange({ ...farmer, workingCapitalBudget: 0 });
+                    return;
+                  }
+                  const parsed = parseFloat(rawVal);
+                  if (isNaN(parsed) || !isFinite(parsed) || parsed < 0) {
+                    onFarmerChange({ ...farmer, workingCapitalBudget: 0 });
+                  } else {
+                    // Cap at 100 Crore safety ceiling
+                    const safeVal = Math.min(parsed, 1000000000);
+                    onFarmerChange({ ...farmer, workingCapitalBudget: safeVal });
+                  }
+                }}
+                className="w-full pl-8 pr-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-bold text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-hidden"
+              />
+            </div>
+
+            {/* Scale Presets: Marginal to Enterprise/FPO */}
+            <div className="space-y-1.5">
+              <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                Quick Presets (Marginal to Commercial & FPO Scale):
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  { label: '₹50K (Marginal)', val: 50000 },
+                  { label: '₹2.5 Lakh (Small)', val: 250000 },
+                  { label: '₹5 Lakh (Medium)', val: 500000 },
+                  { label: '₹10 Lakh (Commercial)', val: 1000000 },
+                  { label: '₹25 Lakh (Large)', val: 2500000 },
+                  { label: '₹50 Lakh (Estate)', val: 5000000 },
+                  { label: '₹1 Crore (FPO Scale)', val: 10000000 },
+                  { label: '₹5 Crore (Agro-Hub)', val: 50000000 }
+                ].map((preset) => (
+                  <button
+                    key={preset.val}
+                    type="button"
+                    onClick={() => onFarmerChange({ ...farmer, workingCapitalBudget: preset.val })}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all cursor-pointer border ${
+                      farmer.workingCapitalBudget === preset.val
+                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                        : 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+                    }`}
+                  >
+                    {preset.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
         </div>
@@ -350,11 +489,29 @@ export const StepProfile: React.FC<StepProfileProps> = ({
               value={location.state}
               onChange={(e) => {
                 const newState = e.target.value;
-                const firstDistrict = INDIAN_DISTRICTS.find(d => d.state === newState) || INDIAN_DISTRICTS[0];
-                handleDistrictChange(firstDistrict.district);
+                if (!newState) {
+                  onLocationChange({
+                    ...location,
+                    state: '',
+                    district: '',
+                    latitude: null,
+                    longitude: null,
+                    agroClimaticZoneId: undefined as any,
+                    agroClimaticZoneName: '',
+                    normalAnnualRainfallMm: undefined as any
+                  });
+                  return;
+                }
+                const firstDistrict = INDIAN_DISTRICTS.find(d => d.state === newState);
+                if (firstDistrict) {
+                  handleDistrictChange(firstDistrict.district);
+                } else {
+                  onLocationChange({ ...location, state: newState, district: '' });
+                }
               }}
               className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-hidden cursor-pointer"
             >
+              <option value="">-- Select State --</option>
               {INDIAN_STATES.map((s) => (
                 <option key={s} value={s}>{s}</option>
               ))}
@@ -372,7 +529,8 @@ export const StepProfile: React.FC<StepProfileProps> = ({
               onChange={(e) => handleDistrictChange(e.target.value)}
               className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-hidden cursor-pointer"
             >
-              {INDIAN_DISTRICTS.filter(d => d.state === location.state).map((d) => (
+              <option value="">-- Select District --</option>
+              {INDIAN_DISTRICTS.filter(d => !location.state || d.state === location.state).map((d) => (
                 <option key={d.district} value={d.district}>{d.district}</option>
               ))}
             </select>
@@ -412,14 +570,18 @@ export const StepProfile: React.FC<StepProfileProps> = ({
           <div className="md:col-span-2 p-3.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/60 dark:border-slate-700 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
             <div>
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 block">
-                Agro-Climatic Delineation (Zone {location.agroClimaticZoneId})
+                Agro-Climatic Delineation {location.agroClimaticZoneId ? `(Zone ${location.agroClimaticZoneId})` : '(Pending Location)'}
               </span>
               <span className="text-xs font-extrabold text-slate-900 dark:text-white">
-                {location.agroClimaticZoneName} &bull; Normal Rainfall: {location.normalAnnualRainfallMm} mm
+                {location.agroClimaticZoneName 
+                  ? `${location.agroClimaticZoneName} • Normal Rainfall: ${location.normalAnnualRainfallMm || 0} mm`
+                  : 'Select State and District to calibrate Agro-Climatic Zone & normal rainfall.'}
               </span>
             </div>
             <div className="text-[11px] text-slate-600 dark:text-slate-300 font-mono">
-              GPS: {location.latitude?.toFixed(4)}° N, {location.longitude?.toFixed(4)}° E &bull; Alt: {location.altitudeMeters || 550}m
+              {location.latitude !== null && location.latitude !== undefined && location.longitude !== null && location.longitude !== undefined
+                ? `GPS: ${location.latitude.toFixed(4)}° N, ${location.longitude.toFixed(4)}° E • Alt: ${location.altitudeMeters || 550}m`
+                : 'Coordinates pending location selection'}
             </div>
           </div>
         </div>
@@ -735,7 +897,7 @@ export const StepProfile: React.FC<StepProfileProps> = ({
             <input
               type="text"
               id="input-current-crop"
-              value={land.characteristics?.currentCrop || 'Soybean'}
+              value={land.characteristics?.currentCrop || ''}
               onChange={(e) => onLandChange({
                 ...land,
                 characteristics: {
@@ -756,7 +918,7 @@ export const StepProfile: React.FC<StepProfileProps> = ({
             <input
               type="text"
               id="input-previous-crop"
-              value={land.characteristics?.previousCrop || 'Wheat'}
+              value={land.characteristics?.previousCrop || ''}
               onChange={(e) => onLandChange({
                 ...land,
                 characteristics: {

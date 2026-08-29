@@ -5,6 +5,7 @@ import {
   Layers, 
   FlaskConical, 
   Wheat, 
+  CloudSun,
   Calculator, 
   CheckCircle2, 
   ChevronRight,
@@ -48,8 +49,8 @@ export const FarmWorkflowSidebar: React.FC<FarmWorkflowSidebarProps> = ({
   const steps = [
     {
       id: 1,
-      title: language === 'en' ? 'Farmer Profile' : 'किसान प्रोफ़ाइल',
-      subtitle: farmer.name ? `${farmer.name}` : (language === 'en' ? 'Operating Baseline' : 'परिचालन आधार'),
+      title: language === 'en' ? 'Farmer Details' : 'किसान विवरण',
+      subtitle: farmer.name ? `${farmer.name}` : (language === 'en' ? 'Basic Information' : 'मूलभूत जानकारी'),
       detail: farmer.farmerType ? `${farmer.farmerType.split(' ')[0]}` : '',
       icon: User,
       isCompleted: Boolean(farmer.name && farmer.workingCapitalBudget > 0)
@@ -88,6 +89,14 @@ export const FarmWorkflowSidebar: React.FC<FarmWorkflowSidebarProps> = ({
     },
     {
       id: 6,
+      title: language === 'en' ? 'Weather Intelligence' : 'मौसम इंटेलिजेंस',
+      subtitle: location.latitude ? `Live Open-Meteo Feed` : (language === 'en' ? 'Agro-Met Forecast' : 'मौसम पूर्वानुमान'),
+      detail: location.normalAnnualRainfallMm ? `${location.normalAnnualRainfallMm}mm Normal` : '10-Day Horizon',
+      icon: CloudSun,
+      isCompleted: Boolean(location.latitude && location.longitude)
+    },
+    {
+      id: 7,
       title: language === 'en' ? 'FARMFIT Calculation Engine' : 'गणना इंजन (Engine)',
       subtitle: language === 'en' ? 'Simulation & CACP Model' : 'सिमुलेशन व परिणाम',
       detail: language === 'en' ? 'Ready to execute' : 'गणना तैयार',

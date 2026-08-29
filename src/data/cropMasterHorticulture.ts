@@ -627,5 +627,297 @@ export const HORTICULTURE_CROPS: CropMasterRecord[] = [
     dataConfidenceScore: 98,
     dataConfidenceLevel: "High",
     sources: [OFFICIAL_CROP_SOURCES.NHB_HORTICULTURE, OFFICIAL_CROP_SOURCES.ICAR_POPR]
+  },
+  // ==========================================
+  // CARROT (GAJAR)
+  // ==========================================
+  {
+    cropId: "carrot",
+    cropName: "Carrot (Gajar)",
+    displayName: "Carrot",
+    officialCommodityName: "Carrot",
+    commodityGroup: "Vegetables",
+    aliases: ["carrot", "gajar", "gajjari", "mangalkosu"],
+    isVegetable: true,
+    scientificName: "Daucus carota subsp. sativus",
+    localNames: {
+      en: "Carrot",
+      hi: "गाजर",
+      kn: "ಕ್ಯಾರೆಟ್ / ಗಜ್ಜರಿ (Carrot / Gajjari)",
+      mr: "गाजर (Gaajar)",
+      te: "క్యారెట్ (Carrot)",
+      ta: "கேரட் (Carrot)",
+      bn: "গাজর (Gajor)",
+      gu: "ગાજર (Gajar)",
+      pa: "ਗਾਜਰ (Gajar)",
+      ml: "കാരറ്റ് (Carrot)",
+      or: "ଗାଜର (Gajara)",
+      as: "গাজৰ (Gazor)",
+      ur: "گاجر"
+    },
+    category: "Vegetables",
+    subcategory: "Root Vegetable",
+    season: "Rabi",
+    plantingWindow: "August - November (Plains) / March - July (Hills/Nilgiris)",
+    harvestWindow: "November - March (Plains) / June - October (Hills)",
+    typicalDurationDays: 85,
+    durationRangeDays: { min: 75, max: 100 },
+    soilRequirements: {
+      soilTypes: ["Alluvial Soil (Entisols / Inceptisols)", "Red & Yellow Soil (Alfisols / Ultisols)"],
+      texture: ["Deep Sandy Loam", "Loose Silty Loam without stones/clods"],
+      pHRange: { min: 5.8, max: 7.2, optimalMin: 6.0, optimalMax: 6.8 },
+      drainage: ["Excellent (Free drainage essential to avoid root rot and forking)"],
+      soilDepth: ["Deep (> 40 cm)"]
+    },
+    climateRequirements: {
+      temperature: { minC: 10, maxC: 26, optimalMinC: 15, optimalMaxC: 20 },
+      rainfall: { minMm: 400, maxMm: 700, optimalMm: 500 },
+      humidity: "Moderate; high humidity increases leaf blight incidence",
+      sunlight: "Full sun; deep root color synthesis occurs optimally at 15-20°C",
+      altitudeMeters: { min: 100, max: 2600 }
+    },
+    waterRequirements: {
+      waterRequirementMm: 400,
+      waterRequirementLevel: "Medium (400 - 800 mm)",
+      irrigationRequirement: "Regular light irrigation (every 6-8 days) to keep soil moist; avoid sudden heavy watering which causes root splitting",
+      criticalIrrigationStages: ["Germination & Emergence", "Root Enlargement / Tuber Growth"],
+      droughtTolerance: "Low",
+      waterloggingSensitivity: "High"
+    },
+    agronomy: {
+      seedRequirement: { value: 3.5, unit: "Kg/Acre (European/Asiatic varieties)", source: "ICAR-IARI", sourceDate: "2024", dataStatus: "OFFICIAL DATA" },
+      plantingMethod: "Direct seeding on raised ridges/beds (spaced 30-45 cm apart)",
+      spacing: "30 cm x 8-10 cm",
+      fertilizerRequirements: {
+        rdfKgPerHa: "100:50:80 NPK kg/ha + 20-25 tonnes FYM",
+        majorNutrients: "Moderate Nitrogen with high Potash for uniform root development and beta-carotene synthesis",
+        micronutrients: "Boron (0.1% spray) to prevent core rot and cavity spots",
+        note: "Avoid fresh un-decomposed manure which causes root forking and secondary root proliferation"
+      },
+      majorNutrients: "N: 40 kg/acre, P2O5: 20 kg/acre, K2O: 32 kg/acre",
+      micronutrients: "Boron, Zinc"
+    },
+    production: {
+      yieldRange: { min: 100.0, max: 180.0, benchmarkAvg: 130.0, unit: "Quintal/Acre", source: "NHB Database", sourceDate: "2024", dataStatus: "OFFICIAL DATA" },
+      unit: "Quintal/Acre"
+    },
+    geographic: {
+      majorProducingStates: ["Karnataka (Kolar, Belagavi, Nilgiri border)", "Punjab", "Haryana", "Uttar Pradesh", "Tamil Nadu (Nilgiris/Ooty)", "Maharashtra", "Madhya Pradesh"],
+      majorProducingDistricts: ["Kolar", "Belagavi", "Nilgiris (Ooty Carrot)", "Hoshiarpur", "Sonipat", "Pune", "Nashik", "Indore"],
+      suitableAgroClimaticZones: [1, 2, 3, 5, 6, 9, 10, 12, 14]
+    },
+    market: {
+      perishability: "High (Fresh roots 4-7 days ambient; 2-4 months in cold storage at 0-1°C, 95% RH)",
+      storageRequirement: "Hydrocooling and cold storage at 0°C with 95-98% relative humidity",
+      processingPotential: "Carrot Juice, Puree, Shredded dehydrated carrot, Canned carrot, Gajar Halwa RTE packs",
+      majorConsumptionRegions: ["High pan-India consumption; major wholesale terminals in Bengaluru, Mumbai, Delhi NCR, Pune, Kolkata"]
+    },
+    trade: {
+      exportImportance: "Moderate",
+      importDependence: "Self-Sufficient"
+    },
+    government: {
+      MSPApplicable: false,
+      mspPrice2024_25: { value: null, unit: "INR/Quintal", source: "Commercial Vegetable / MIDH", sourceDate: "2024", dataStatus: "DATA NOT CONNECTED" },
+      governmentSchemeLinks: ["MIDH Horticulture Mission", "PMKSY Drip & Micro-Irrigation", "Operation Greens Long-Term Infrastructure"]
+    },
+    dataConfidenceScore: 96,
+    dataConfidenceLevel: "High",
+    sources: [OFFICIAL_CROP_SOURCES.NHB_HORTICULTURE, OFFICIAL_CROP_SOURCES.ICAR_POPR]
+  },
+  // ==========================================
+  // CABBAGE (PATTAGOBHI)
+  // ==========================================
+  {
+    cropId: "cabbage",
+    cropName: "Cabbage (Pattagobhi)",
+    displayName: "Cabbage",
+    officialCommodityName: "Cabbage",
+    commodityGroup: "Vegetables",
+    aliases: ["cabbage", "patta gobhi", "band gobhi", "yelekosu", "muttaikose"],
+    isVegetable: true,
+    scientificName: "Brassica oleracea var. capitata",
+    localNames: {
+      en: "Cabbage",
+      hi: "पत्तागोभी / बंदगोभी",
+      kn: "ಎಲೆಕೋಸು (Yelekosu)",
+      mr: "कोबी (Kobi)",
+      te: "క్యాబేజీ (Cabbage)",
+      ta: "முட்டைக்கோஸ் (Muttaikose)",
+      bn: "বাঁಧাকপি (Badhakopi)",
+      gu: "કોબીજ (Kobij)",
+      pa: "ਬੰਦਗੋਭੀ (Bandgobhi)",
+      ml: "കാബേജ് (Cabbage)",
+      or: "ବନ୍ଧାକୋବି (Bandhakobi)",
+      as: "বন্ধাকবি (Bandhakobi)",
+      ur: "بند گوبھی"
+    },
+    category: "Vegetables",
+    subcategory: "Cole Crop",
+    season: "Rabi",
+    plantingWindow: "September - November (Plains) / Year-round (Plateaus & Hills)",
+    harvestWindow: "December - March",
+    typicalDurationDays: 80,
+    durationRangeDays: { min: 70, max: 95 },
+    soilRequirements: {
+      soilTypes: ["Alluvial Soil (Entisols / Inceptisols)", "Black Cotton Soil (Vertisols)"],
+      texture: ["Well-drained Loam"],
+      pHRange: { min: 6.0, max: 7.5, optimalMin: 6.2, optimalMax: 6.8 },
+      drainage: ["Good (No waterlogging)"],
+      soilDepth: ["Medium (25 - 50 cm)"]
+    },
+    climateRequirements: {
+      temperature: { minC: 8, maxC: 28, optimalMinC: 15, optimalMaxC: 20 },
+      rainfall: { minMm: 450, maxMm: 800, optimalMm: 550 },
+      humidity: "Moderate to high",
+      sunlight: "Sunny cool weather favoring solid head formation",
+      altitudeMeters: { min: 50, max: 2400 }
+    },
+    waterRequirements: {
+      waterRequirementMm: 450,
+      waterRequirementLevel: "Medium (400 - 800 mm)",
+      irrigationRequirement: "Frequent light irrigations; continuous moisture prevents head bursting",
+      criticalIrrigationStages: ["Head Formation", "Head Enlargement"],
+      droughtTolerance: "Low",
+      waterloggingSensitivity: "High"
+    },
+    agronomy: {
+      seedRequirement: { value: 150, unit: "Grams/Acre (Hybrid seeds)", source: "ICAR-IIHR", sourceDate: "2024", dataStatus: "OFFICIAL DATA" },
+      plantingMethod: "Transplanting 25-day nursery seedlings onto ridges or raised beds",
+      spacing: "45 cm x 45 cm",
+      fertilizerRequirements: {
+        rdfKgPerHa: "120:60:60 NPK kg/ha",
+        majorNutrients: "High Nitrogen & Potash for solid head density",
+        micronutrients: "Molybdenum and Boron to prevent whiptail and hollow stem",
+        note: "Apply well-decomposed FYM @ 10-15 tonnes/acre during field preparation"
+      },
+      majorNutrients: "N: 48 kg/acre, P2O5: 24 kg/acre, K2O: 24 kg/acre",
+      micronutrients: "Boron, Molybdenum"
+    },
+    production: {
+      yieldRange: { min: 120.0, max: 220.0, benchmarkAvg: 160.0, unit: "Quintal/Acre", source: "NHB Database", sourceDate: "2024", dataStatus: "OFFICIAL DATA" },
+      unit: "Quintal/Acre"
+    },
+    geographic: {
+      majorProducingStates: ["West Bengal", "Odisha", "Gujarat", "Karnataka (Belagavi, Kolar)", "Maharashtra (Pune, Nashik)", "Madhya Pradesh", "Bihar"],
+      majorProducingDistricts: ["Belagavi", "Kolar", "Pune", "Nashik", "Indore", "Hooghly"],
+      suitableAgroClimaticZones: [2, 3, 5, 7, 9, 10, 12, 14]
+    },
+    market: {
+      perishability: "Moderate (1-2 weeks ambient; 4-6 weeks at 0-2°C, 95% RH)",
+      storageRequirement: "Cold storage with high relative humidity",
+      processingPotential: "Sauerkraut, Dehydrated cabbage shreds, RTE salads",
+      majorConsumptionRegions: ["Pan-India staple"]
+    },
+    trade: {
+      exportImportance: "Low",
+      importDependence: "Self-Sufficient"
+    },
+    government: {
+      MSPApplicable: false,
+      mspPrice2024_25: { value: null, unit: "INR/Quintal", source: "Commercial Vegetable", sourceDate: "2024", dataStatus: "DATA NOT CONNECTED" },
+      governmentSchemeLinks: ["MIDH Mission for Integrated Development of Horticulture"]
+    },
+    dataConfidenceScore: 95,
+    dataConfidenceLevel: "High",
+    sources: [OFFICIAL_CROP_SOURCES.NHB_HORTICULTURE]
+  },
+  // ==========================================
+  // CAULIFLOWER (PHOOL GOBHI)
+  // ==========================================
+  {
+    cropId: "cauliflower",
+    cropName: "Cauliflower (Phool Gobhi)",
+    displayName: "Cauliflower",
+    officialCommodityName: "Cauliflower",
+    commodityGroup: "Vegetables",
+    aliases: ["cauliflower", "phool gobhi", "gobhi", "huvukosu", "kaaliflavar"],
+    isVegetable: true,
+    scientificName: "Brassica oleracea var. botrytis",
+    localNames: {
+      en: "Cauliflower",
+      hi: "फूलगोभी",
+      kn: "ಹೂಕೋಸು (Huvukosu)",
+      mr: "फ्लॉवर (Flower)",
+      te: "క్యాలీఫ్లవర్ (Cauliflower)",
+      ta: "காலிஃபிளவர் (Cauliflower)",
+      bn: "ফুলকপি (Phulkopi)",
+      gu: "ફૂલેવર (Fulewar)",
+      pa: "ਫੁੱਲਗੋਭੀ (Phullgobhi)",
+      ml: "കോളിഫ്ലവർ (Cauliflower)",
+      or: "ଫୁଲକୋବି (Phulakobi)",
+      as: "ফুলকবি (Phulkobi)",
+      ur: "پھول گوبھی"
+    },
+    category: "Vegetables",
+    subcategory: "Cole Crop",
+    season: "Rabi",
+    plantingWindow: "July - November (depending on early/mid/late cultivar)",
+    harvestWindow: "October - February",
+    typicalDurationDays: 80,
+    durationRangeDays: { min: 65, max: 95 },
+    soilRequirements: {
+      soilTypes: ["Alluvial Soil (Entisols / Inceptisols)", "Red & Yellow Soil (Alfisols / Ultisols)"],
+      texture: ["Rich Sandy Loam"],
+      pHRange: { min: 5.5, max: 7.2, optimalMin: 6.0, optimalMax: 6.8 },
+      drainage: ["Good (No waterlogging)"],
+      soilDepth: ["Medium (25 - 50 cm)"]
+    },
+    climateRequirements: {
+      temperature: { minC: 10, maxC: 28, optimalMinC: 15, optimalMaxC: 20 },
+      rainfall: { minMm: 400, maxMm: 750, optimalMm: 500 },
+      humidity: "Moderate",
+      sunlight: "Curd development requires cool weather and protection from direct harsh sun (blanching)",
+      altitudeMeters: { min: 50, max: 2200 }
+    },
+    waterRequirements: {
+      waterRequirementMm: 450,
+      waterRequirementLevel: "Medium (400 - 800 mm)",
+      irrigationRequirement: "Regular light irrigations every 5-7 days; water stress causes buttoning and loose curds",
+      criticalIrrigationStages: ["Curd Initiation", "Curd Development"],
+      droughtTolerance: "Low",
+      waterloggingSensitivity: "High"
+    },
+    agronomy: {
+      seedRequirement: { value: 120, unit: "Grams/Acre (Hybrid)", source: "ICAR-IARI", sourceDate: "2024", dataStatus: "OFFICIAL DATA" },
+      plantingMethod: "Transplanting 30-day seedlings",
+      spacing: "45 cm x 45 cm or 60 cm x 45 cm",
+      fertilizerRequirements: {
+        rdfKgPerHa: "120:60:60 NPK kg/ha",
+        majorNutrients: "Balanced NPK",
+        micronutrients: "Boron (10-15 kg/ha borax) to prevent brown rot / browning, Molybdenum to prevent whiptail",
+        note: "Incorporate organic matter before transplanting to ensure steady moisture"
+      },
+      majorNutrients: "N: 48 kg/acre, P2O5: 24 kg/acre, K2O: 24 kg/acre",
+      micronutrients: "Boron, Molybdenum"
+    },
+    production: {
+      yieldRange: { min: 100.0, max: 180.0, benchmarkAvg: 140.0, unit: "Quintal/Acre", source: "NHB Database", sourceDate: "2024", dataStatus: "OFFICIAL DATA" },
+      unit: "Quintal/Acre"
+    },
+    geographic: {
+      majorProducingStates: ["Bihar", "West Bengal", "Madhya Pradesh", "Karnataka (Belagavi, Kolar)", "Maharashtra (Pune, Nashik)", "Punjab", "Haryana"],
+      majorProducingDistricts: ["Belagavi", "Kolar", "Pune", "Nashik", "Indore", "Patna", "Jalandhar"],
+      suitableAgroClimaticZones: [2, 3, 4, 5, 6, 9, 10, 12, 14]
+    },
+    market: {
+      perishability: "High (Curds yellow and rot in 3-5 days ambient; 2-3 weeks at 0°C, 95% RH)",
+      storageRequirement: "Immediate cold chain storage",
+      processingPotential: "Frozen florets, Dehydrated florets, Pickling",
+      majorConsumptionRegions: ["Pan-India major vegetable"]
+    },
+    trade: {
+      exportImportance: "Low",
+      importDependence: "Self-Sufficient"
+    },
+    government: {
+      MSPApplicable: false,
+      mspPrice2024_25: { value: null, unit: "INR/Quintal", source: "Commercial Vegetable", sourceDate: "2024", dataStatus: "DATA NOT CONNECTED" },
+      governmentSchemeLinks: ["MIDH Horticulture Mission"]
+    },
+    dataConfidenceScore: 95,
+    dataConfidenceLevel: "High",
+    sources: [OFFICIAL_CROP_SOURCES.NHB_HORTICULTURE]
   }
 ];
+

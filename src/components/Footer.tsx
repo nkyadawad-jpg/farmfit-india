@@ -96,33 +96,38 @@ export const Footer: React.FC<FooterProps> = ({ language, onSelectTab }) => {
             </h4>
             <ul className="space-y-2 text-xs">
               <li>
-                <button onClick={() => onSelectTab('profile')} className="hover:text-emerald-400 transition-colors">
-                  1. Farm & Farmer Profile
+                <button onClick={() => onSelectTab('farm_decision')} className="hover:text-emerald-400 transition-colors text-left">
+                  1. Farm Decision (Farmer Details)
                 </button>
               </li>
               <li>
-                <button onClick={() => onSelectTab('location')} className="hover:text-emerald-400 transition-colors">
-                  2. Farm Agro-Climatic Location
+                <button onClick={() => onSelectTab('location')} className="hover:text-emerald-400 transition-colors text-left">
+                  2. Farm Location &amp; Geocoding
                 </button>
               </li>
               <li>
-                <button onClick={() => onSelectTab('land')} className="hover:text-emerald-400 transition-colors">
-                  3. Land & Irrigation Setup
+                <button onClick={() => onSelectTab('land')} className="hover:text-emerald-400 transition-colors text-left">
+                  3. Land &amp; Irrigation Setup
                 </button>
               </li>
               <li>
-                <button onClick={() => onSelectTab('soil')} className="hover:text-emerald-400 transition-colors">
-                  4. Soil Health Intelligence
+                <button onClick={() => onSelectTab('soil')} className="hover:text-emerald-400 transition-colors text-left">
+                  4. Soil Health Diagnostic
                 </button>
               </li>
               <li>
-                <button onClick={() => onSelectTab('crops')} className="hover:text-emerald-400 transition-colors">
-                  5. Crop & Planting Constraints
+                <button onClick={() => onSelectTab('crops')} className="hover:text-emerald-400 transition-colors text-left">
+                  5. Crop Planning &amp; Season Intent
                 </button>
               </li>
               <li>
-                <button onClick={() => onSelectTab('engine')} className="hover:text-emerald-400 font-semibold text-emerald-400 transition-colors">
-                  6. FARMFIT Calculation Engine
+                <button onClick={() => onSelectTab('markets')} className="hover:text-emerald-400 transition-colors text-left">
+                  6. Mandi Market Intelligence
+                </button>
+              </li>
+              <li>
+                <button onClick={() => onSelectTab('about')} className="hover:text-emerald-400 transition-colors text-left">
+                  7. About FARMFIT Platform
                 </button>
               </li>
             </ul>
@@ -136,12 +141,12 @@ export const Footer: React.FC<FooterProps> = ({ language, onSelectTab }) => {
             <ul className="space-y-2 text-xs">
               <li>
                 <button onClick={() => onSelectTab('recommendations')} className="hover:text-emerald-400 transition-colors">
-                  Crop Recommendations & Suitability
+                  Crop Recommendations &amp; Suitability
                 </button>
               </li>
               <li>
                 <button onClick={() => onSelectTab('routing')} className="hover:text-emerald-400 transition-colors">
-                  APMC Mandi Routing & Net Realization
+                  APMC Mandi Routing &amp; Net Realization
                 </button>
               </li>
               <li>
@@ -156,7 +161,7 @@ export const Footer: React.FC<FooterProps> = ({ language, onSelectTab }) => {
               </li>
               <li>
                 <button onClick={() => onSelectTab('weather')} className="hover:text-emerald-400 transition-colors">
-                  IMD Agro-Meteorology & Alerts
+                  IMD Agro-Meteorology &amp; Alerts
                 </button>
               </li>
               <li>
@@ -170,19 +175,19 @@ export const Footer: React.FC<FooterProps> = ({ language, onSelectTab }) => {
           {/* Data Governance & Disclaimers */}
           <div>
             <h4 className="font-semibold text-white text-xs uppercase tracking-wider mb-3">
-              Data Governance
+              Data Governance &amp; Aim
             </h4>
             <ul className="space-y-2 text-xs">
               <li>
-                <button onClick={() => onSelectTab('datasources')} className="hover:text-emerald-400 transition-colors flex items-center gap-1.5">
+                <button onClick={() => onSelectTab('data_audit')} className="hover:text-emerald-400 transition-colors flex items-center gap-1.5">
                   <Database className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>Open Data Registry</span>
+                  <span>Data &amp; Audit Registry</span>
                 </button>
               </li>
               <li>
                 <button onClick={() => onSelectTab('about')} className="hover:text-emerald-400 transition-colors flex items-center gap-1.5">
                   <FileCheck2 className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>CACP Cost & ICAR Methodology</span>
+                  <span>About FARMFIT &amp; Principles</span>
                 </button>
               </li>
               <li>
@@ -192,16 +197,29 @@ export const Footer: React.FC<FooterProps> = ({ language, onSelectTab }) => {
               </li>
             </ul>
             <div className="mt-4 p-2.5 rounded bg-slate-950 border border-slate-800 text-[11px] text-slate-400 leading-tight">
-              All baseline statistics are directly mapped to public data published by Ministry of Agriculture & Farmers Welfare, Government of India.
+              All baseline statistics are directly mapped to public data published by Ministry of Agriculture &amp; Farmers Welfare, Government of India.
             </div>
           </div>
         </div>
 
-        <div className="mt-8 pt-6 border-t border-slate-800/80 flex flex-col sm:flex-row items-center justify-between gap-3 text-slate-300 text-xs">
-          <p>© {new Date().getFullYear()} FARMFIT • India Intelligent Agricultural Decision System</p>
-          <p className="text-slate-300 text-[11px]">
-            Designed for transparent, accessible Indian agricultural agronomy and farm economics.
-          </p>
+        {/* Mandatory Creator Disclosure & Copyright Presentation */}
+        <div className="mt-10 pt-6 border-t border-slate-800/90 flex flex-col md:flex-row items-center justify-between gap-4 text-center md:text-left">
+          <div className="space-y-1">
+            <div className="text-xs font-bold text-slate-200 tracking-wide">
+              FARMFIT — Agricultural Decision Intelligence Platform
+            </div>
+            <div className="text-[11px] text-slate-400">
+              Designed &amp; Created by <span className="text-emerald-400 font-semibold">Noeman Khwaja Yadawad</span>
+            </div>
+            <div className="text-[10px] text-slate-500 italic">
+              (Currently in Testing Period)
+            </div>
+          </div>
+
+          <div className="text-slate-400 text-[11px] space-y-0.5 md:text-right">
+            <div>© {new Date().getFullYear()} FARMFIT • Evidence-First Agricultural Decision Intelligence</div>
+            <div className="text-slate-500 text-[10px]">GODL-India Compliant Open Agricultural Data Framework</div>
+          </div>
         </div>
       </div>
     </footer>

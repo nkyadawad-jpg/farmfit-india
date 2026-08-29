@@ -3,8 +3,8 @@ import L from 'leaflet';
 import { MapPin, Navigation, ZoomIn, ZoomOut, Layers, Eye } from 'lucide-react';
 
 interface InteractiveMapPickerProps {
-  latitude: number;
-  longitude: number;
+  latitude?: number | null;
+  longitude?: number | null;
   onLocationSelect: (lat: number, lng: number) => void;
   altitudeMeters?: number | null;
   locationLabel?: string;
@@ -56,12 +56,14 @@ export const InteractiveMapPicker: React.FC<InteractiveMapPickerProps> = ({
       mapInstanceRef.current = null;
     }
 
-    const safeLat = isNaN(latitude) || latitude === 0 ? 22.7196 : latitude;
-    const safeLng = isNaN(longitude) || longitude === 0 ? 75.8577 : longitude;
+    const hasCoords = typeof latitude === 'number' && typeof longitude === 'number' && !isNaN(latitude) && !isNaN(longitude);
+    const safeLat = hasCoords ? latitude : 20.5937;
+    const safeLng = hasCoords ? longitude : 78.9629;
+    const initialZoom = hasCoords ? 12 : 5;
 
     const map = L.map(mapContainerRef.current, {
       center: [safeLat, safeLng],
-      zoom: 12,
+      zoom: initialZoom,
       zoomControl: true,
       scrollWheelZoom: true
     });
@@ -115,11 +117,11 @@ export const InteractiveMapPicker: React.FC<InteractiveMapPickerProps> = ({
   // Update marker when lat/lng props change from outside
   useEffect(() => {
     if (mapInstanceRef.current && markerRef.current) {
-      const safeLat = isNaN(latitude) || latitude === 0 ? 22.7196 : latitude;
-      const safeLng = isNaN(longitude) || longitude === 0 ? 75.8577 : longitude;
-      
-      markerRef.current.setLatLng([safeLat, safeLng]);
-      mapInstanceRef.current.panTo([safeLat, safeLng], { animate: true });
+      const hasCoords = typeof latitude === 'number' && typeof longitude === 'number' && !isNaN(latitude) && !isNaN(longitude);
+      if (hasCoords) {
+        markerRef.current.setLatLng([latitude, longitude]);
+        mapInstanceRef.current.panTo([latitude, longitude], { animate: true });
+      }
     }
   }, [latitude, longitude]);
 

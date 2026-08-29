@@ -79,8 +79,8 @@ export const LandEngine: React.FC<LandEngineProps> = ({
       isIrrigated: true,
       irrigationSource: 'Borewell',
       soilType: 'Alluvial Soil',
-      currentCrop: 'Soybean',
-      proposedCrop: 'Wheat'
+      currentCrop: '',
+      proposedCrop: ''
     }
   ]);
   const [showPlotDrawer, setShowPlotDrawer] = useState<boolean>(false);

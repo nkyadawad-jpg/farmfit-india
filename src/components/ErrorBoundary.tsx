@@ -1,5 +1,5 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { AlertTriangle, RefreshCw, ArrowLeft, ShieldAlert } from 'lucide-react';
+import { AlertTriangle, RefreshCw, ArrowLeft, ShieldAlert, CheckCircle2, HelpCircle } from 'lucide-react';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -11,6 +11,7 @@ interface ErrorBoundaryState {
   hasError: boolean;
   errorId: string;
   errorMessage?: string;
+  errorType: 'CALCULATION_ERROR' | 'PARTIAL_DATA' | 'DATA_UNAVAILABLE';
 }
 
 export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
@@ -18,16 +19,27 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     super(props);
     this.state = {
       hasError: false,
-      errorId: ''
+      errorId: '',
+      errorType: 'CALCULATION_ERROR'
     };
   }
 
   public static getDerivedStateFromError(error: Error): ErrorBoundaryState {
     const randomHex = Math.random().toString(36).substring(2, 9).toUpperCase();
+    const msg = error?.message || '';
+    
+    let errorType: 'CALCULATION_ERROR' | 'PARTIAL_DATA' | 'DATA_UNAVAILABLE' = 'CALCULATION_ERROR';
+    if (msg.toLowerCase().includes('unavailable') || msg.toLowerCase().includes('not found')) {
+      errorType = 'DATA_UNAVAILABLE';
+    } else if (msg.toLowerCase().includes('partial') || msg.toLowerCase().includes('incomplete')) {
+      errorType = 'PARTIAL_DATA';
+    }
+
     return {
       hasError: true,
       errorId: `ERR-FF-${randomHex}`,
-      errorMessage: error?.message || 'An unexpected rendering error occurred.'
+      errorMessage: msg || 'Agronomic calculation or rendering condition encountered.',
+      errorType
     };
   }
 
@@ -36,7 +48,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   }
 
   private handleRetry = () => {
-    this.setState({ hasError: false, errorId: '', errorMessage: undefined });
+    this.setState({ hasError: false, errorId: '', errorMessage: undefined, errorType: 'CALCULATION_ERROR' });
     if (this.props.onRetryCalculation) {
       this.props.onRetryCalculation();
     } else {
@@ -45,7 +57,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   };
 
   private handleBackToCrops = () => {
-    this.setState({ hasError: false, errorId: '', errorMessage: undefined });
+    this.setState({ hasError: false, errorId: '', errorMessage: undefined, errorType: 'CALCULATION_ERROR' });
     if (this.props.onResetToCrops) {
       this.props.onResetToCrops();
     }
@@ -61,11 +73,18 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
             </div>
 
             <div className="space-y-2">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-300">
+                {this.state.errorType === 'DATA_UNAVAILABLE' 
+                  ? 'DATA STATUS: DATA UNAVAILABLE' 
+                  : this.state.errorType === 'PARTIAL_DATA' 
+                  ? 'DATA STATUS: PARTIAL DATA' 
+                  : 'STATUS: CALCULATION RECOVERY'}
+              </div>
               <h2 className="text-xl font-bold text-slate-900 dark:text-white">
-                FARMFIT encountered a temporary calculation error.
+                FARMFIT Calculation Safety Shield
               </h2>
               <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                The agronomic and multi-variable suitability engine encountered an unexpected data condition. Your farm profile data is preserved.
+                The agronomic and multi-variable suitability engine encountered an unexpected data condition. Your farm profile, location, soil, and irrigation parameters remain fully preserved.
               </p>
             </div>
 

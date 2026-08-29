@@ -1,5 +1,5 @@
 import React from 'react';
-import { User, MapPin, Layers, FlaskConical, Wheat, Calculator, Check } from 'lucide-react';
+import { User, MapPin, Layers, FlaskConical, Wheat, CloudSun, Calculator, Check } from 'lucide-react';
 import { Language } from '../../types';
 import { useTranslation } from '../../locales/translations';
 
@@ -17,12 +17,13 @@ export const WizardProgress: React.FC<WizardProgressProps> = ({
   const t = useTranslation(language);
 
   const steps = [
-    { num: 1, label: language === 'en' ? 'Profile' : 'प्रोफ़ाइल', icon: User },
+    { num: 1, label: language === 'en' ? 'Farmer Details' : 'किसान विवरण', icon: User },
     { num: 2, label: language === 'en' ? 'Location' : 'स्थान', icon: MapPin },
     { num: 3, label: language === 'en' ? 'Land & Water' : 'भूमि व जल', icon: Layers },
     { num: 4, label: language === 'en' ? 'Soil Health' : 'मृदा स्वास्थ्य', icon: FlaskConical },
     { num: 5, label: language === 'en' ? 'Crop Intent' : 'फसल चयन', icon: Wheat },
-    { num: 6, label: language === 'en' ? 'Calculate' : 'गणना इंजन', icon: Calculator }
+    { num: 6, label: language === 'en' ? 'Weather' : 'मौसम', icon: CloudSun },
+    { num: 7, label: language === 'en' ? 'Crop Scan' : 'क्रॉप स्कैन', icon: Calculator }
   ];
 
   return (

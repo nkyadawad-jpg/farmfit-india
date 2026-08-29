@@ -5,3 +5,32 @@
 .leaflet-default-icon-path {
   background-image: url("https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png");
 }
+
+/* Prevent accidental root-level horizontal scrolling while allowing child containers to scroll */
+html, body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+/* Custom subtle scrollbar for tables and responsive horizontal views */
+.overflow-x-auto::-webkit-scrollbar,
+.overflow-y-auto::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.overflow-x-auto::-webkit-scrollbar-track,
+.overflow-y-auto::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.overflow-x-auto::-webkit-scrollbar-thumb,
+.overflow-y-auto::-webkit-scrollbar-thumb {
+  background: rgba(156, 163, 175, 0.4);
+  border-radius: 9999px;
+}
+
+.overflow-x-auto::-webkit-scrollbar-thumb:hover,
+.overflow-y-auto::-webkit-scrollbar-thumb:hover {
+  background: rgba(156, 163, 175, 0.7);
+}

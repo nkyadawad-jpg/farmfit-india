@@ -153,5 +153,28 @@ export const OPEN_DATA_REGISTRY: OpenDataSourceEntry[] = [
     ],
     lastVerificationDate: "Current Financial Year",
     disclaimer: "Trade policy notifications (MEP/Tariff adjustments) are regulated by DGFT orders."
+  },
+  {
+    id: "mospi_hces_survey",
+    name: "Ministry of Statistics and Programme Implementation (MoSPI) - HCES",
+    hindiName: "सांख्यिकी और कार्यक्रम कार्यान्वयन मंत्रालय (MoSPI)",
+    agency: "National Statistical Office (NSO)",
+    department: "Survey Operations & Social Statistics Division",
+    ministry: "Ministry of Statistics and Programme Implementation, Govt. of India",
+    coverage: "National & State Monthly Household Consumption Expenditure (HCES: 2022-23 / 2023-24)",
+    datasetType: "Periodic Survey",
+    status: "CONNECTED_BASELINE",
+    updateCadence: "Periodic Comprehensive Survey Rounds",
+    license: "GODL-India",
+    portalUrl: "https://www.mospi.gov.in/",
+    verifiedFields: [
+      "Per Capita Monthly Household Quantity (kg/capita/month)",
+      "Rural vs Urban Consumption Disaggregation",
+      "Food Group Share in Household Expenditure",
+      "Annualized Household Consumption Demand Indicators"
+    ],
+    lastVerificationDate: "HCES 2022-24 Comprehensive Round",
+    disclaimer: "Household consumption indicators represent surveyed household intake and do not include institutional, hotel/restaurant food-service, seed, feed, or industrial crushing volumes."
   }
 ];
+

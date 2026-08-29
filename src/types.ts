@@ -51,17 +51,17 @@ export interface FarmLocation {
   district: string;
   taluka?: string;
   village?: string;
-  latitude?: number;
-  longitude?: number;
+  latitude?: number | null;
+  longitude?: number | null;
   altitudeMeters?: number | null;
-  altitudeStatus?: 'OBTAINED' | 'UNAVAILABLE' | 'FETCHING';
+  altitudeStatus?: 'OBTAINED' | 'UNAVAILABLE' | 'FETCHING' | 'NOT_QUERIED';
   altitudeSourceName?: string;
-  locationSource?: LocationSourceType;
+  locationSource?: LocationSourceType | 'NOT_SPECIFIED';
   formattedAddress?: string;
-  agroClimaticZoneId: number;
-  agroClimaticZoneName: string;
-  normalAnnualRainfallMm: number;
-  metadata: DataMetadata;
+  agroClimaticZoneId?: number | null;
+  agroClimaticZoneName?: string;
+  normalAnnualRainfallMm?: number | null;
+  metadata?: DataMetadata;
 }
 
 export type SoilOrder = 
@@ -263,6 +263,7 @@ export interface CropAgronomy {
   seedRequirement: CropValueProvenance<number | string>;
   plantingMethod: string;
   spacing: string;
+  recommendedVarieties?: string[];
   fertilizerRequirements: {
     rdfKgPerHa?: string;
     majorNutrients: string;
@@ -294,6 +295,89 @@ export interface CropGeographic {
 
 export type LandIrrigationProfile = LandAndIrrigation;
 export type SoilProfileRecord = SoilIntelligence & { soilType?: string; ph?: number | { value: number; unit?: string } };
+
+export type ConstraintManageabilityClassification = 
+  | 'MANAGEABLE'
+  | 'MANAGEABLE_WITH_COST'
+  | 'PARTIALLY_MANAGEABLE'
+  | 'HIGH_CONSTRAINT'
+  | 'HARD_CONSTRAINT'
+  | 'DATA_INSUFFICIENT';
+
+export type WaterFeasibilityStatus = 
+  | 'WATER_SUFFICIENT'
+  | 'WATER_MANAGEABLE'
+  | 'WATER_MANAGEABLE_WITH_INVESTMENT'
+  | 'WATER_STRESSED'
+  | 'WATER_HARD_CONSTRAINT'
+  | 'INSUFFICIENT_DATA';
+
+export interface ManagementInterventionItem {
+  interventionName: string;
+  action: string;
+  requiredInputs: string[];
+  estimatedCostPerAcre: number;
+  timing: string;
+}
+
+export interface WaterFeasibilityAnalysis {
+  status: WaterFeasibilityStatus;
+  feasibilityStatus?: WaterFeasibilityStatus;
+  cropWaterRequirementMm: number;
+  expectedRainfallMm: number;
+  naturalMoistureAvailableMm?: number;
+  irrigationAvailability: 'Assured Irrigation' | 'Partial Irrigation' | 'Rainfed' | 'Micro-Irrigation (Drip/Sprinkler)' | 'Insufficient Data';
+  irrigationSource?: string;
+  irrigationReliabilityScore10?: number;
+  waterDeficitMm: number; // Max(0, requirement - rainfall)
+  netWaterDeficitMm?: number;
+  additionalIrrigationRequirementMm: number;
+  requiredIrrigationEventsCount: number;
+  estimatedIrrigationCostPerAcre?: number | null; // e.g. electricity / diesel pumping cost
+  estimatedSupplementalCostPerAcre?: number;
+  waterloggingRisk: 'Low' | 'Medium' | 'High';
+  soilWaterRetention: 'High (Clay / Vertisols)' | 'Medium (Loam)' | 'Low (Sandy / Arid)' | 'Unverified';
+  feasibilityExplanation: string;
+  feasibilitySummary?: string;
+  recommendedInterventions: string[];
+}
+
+export interface CropConstraintItem {
+  id: string;
+  factor: 'WATER' | 'SOIL_PH' | 'SOIL_DEPTH' | 'SOIL_DRAINAGE' | 'CLIMATE' | 'SEASON' | 'CAPITAL' | 'MARKET_GLUT' | 'OTHER';
+  problemTitle: string;
+  parameterName?: string;
+  observedValue?: string;
+  description: string;
+  classification: ConstraintManageabilityClassification;
+  canFarmerManage: boolean;
+  managementOption: string;
+  actionableManagementOptions?: string[];
+  additionalRequirement: string;
+  costImplication: string; // e.g. "Estimated ₹2,000 - ₹3,500/acre for supplemental pumping"
+  estimatedCostPerAcre?: number;
+  residualRisk: 'LOW' | 'MEDIUM' | 'HIGH';
+  impactOnDecision: 'NO_IMPACT' | 'CONDITIONAL_APPROVED' | 'AVOID_RECOMMENDED';
+}
+
+export type ThreeTierRecommendationVerdict = 
+  | 'RECOMMENDED'
+  | 'CONDITIONALLY_RECOMMENDED'
+  | 'AVOID'
+  | 'DATA_INSUFFICIENT';
+
+export interface ConditionalManagementPlan {
+  problemSummary: string;
+  managementOptions: string[];
+  recommendedInterventions?: ManagementInterventionItem[];
+  additionalRequirements: string[];
+  costImplicationSummary: string;
+  totalAdditionalManagementCostPerAcre: number;
+  residualRiskSummary: string;
+  expectedRoiAfterManagementPercent?: number;
+  economicSenseEvaluation: string; // Does expected revenue justify the management cost?
+  finalDecisionReasoning: string;
+}
 
 export interface CropMarket {
   perishability: 'High (Perishable: 1-7 days)' | 'Moderate (Semi-perishable: 1-3 months)' | 'Low (Durable grain/seed: 6-12+ months)' | string;
@@ -354,6 +438,21 @@ export interface CropMasterRecord {
   dataConfidenceScore: number; // 0 - 100
   dataConfidenceLevel: 'High' | 'Moderate' | 'Low';
   sources: CropDataSource[];
+  // Canonical Universal Commodity Master Fields
+  cropCommodityId?: string;
+  displayName?: string;
+  officialCommodityName?: string;
+  commodityGroup?: string;
+  aliases?: string[];
+  agmarknetNames?: string[];
+  isVegetable?: boolean;
+  isFruit?: boolean;
+  isCereal?: boolean;
+  isPulse?: boolean;
+  isOilseed?: boolean;
+  isSpice?: boolean;
+  isCommercialCrop?: boolean;
+  isActive?: boolean;
   // Backwards-compatible fields for calculationEngine
   id?: string;
   name?: string;
@@ -410,6 +509,7 @@ export interface CropSuitabilityResult {
   category?: CropCategory;
   overallScore: number; // 0 - 100
   suitabilityLevel: CropSuitabilityLevel;
+  recommendationVerdict?: ThreeTierRecommendationVerdict;
   factorScores?: {
     soilScore?: number;
     waterScore?: number;
@@ -421,6 +521,10 @@ export interface CropSuitabilityResult {
   matchingFactors?: string[];
   positiveFactors?: string[];
   limitingFactors: string[];
+  constraints?: CropConstraintItem[];
+  waterFeasibility?: WaterFeasibilityAnalysis;
+  conditionalManagementPlan?: ConditionalManagementPlan;
+  hardConstraintReason?: string;
   missingDataFlags?: string[];
   agronomicRecommendations?: string[];
   soilScore?: number; // 0 - 100
@@ -478,18 +582,28 @@ export interface MandiPriceRecord {
   state: string;
   cropId: string;
   cropName: string;
-  distanceKm: number;
-  minPricePerQuintal: number;
-  maxPricePerQuintal: number;
-  modalPricePerQuintal: number;
-  dailyArrivalsTonnes: number;
-  arrivalTrend: 'Increasing' | 'Stable' | 'Decreasing';
-  freightCostPerKmPerQuintal: number; // avg Rs 0.8 to Rs 1.5 per quintal per km
-  hamaliChargesPerQuintal: number; // loading / unloading / weighing
-  mandiCessPercent: number; // typically 1% to 2%
-  netRealizationPerQuintal: number; // modal price minus freight minus cess minus hamali
-  date: string;
-  metadata: DataMetadata;
+  market?: string;
+  priceDate?: string;
+  modalPrice?: number | null;
+  priceUnit?: string;
+  latitude?: number;
+  longitude?: number;
+  distanceKm?: number | null;
+  minPricePerQuintal?: number | null;
+  maxPricePerQuintal?: number | null;
+  modalPricePerQuintal?: number | null;
+  dailyArrivalsTonnes?: number | null;
+  arrivalTrend?: 'Increasing' | 'Stable' | 'Decreasing' | string;
+  freightCostPerKmPerQuintal?: number | null;
+  hamaliChargesPerQuintal?: number | null;
+  mandiCessPercent?: number | null;
+  netRealizationPerQuintal?: number | null;
+  date?: string;
+  source?: string;
+  dataset?: string;
+  retrievedAt?: string;
+  dataStatus?: 'OFFICIAL DATA' | 'HISTORICAL DATA' | 'PARTIAL DATA' | 'DATA UNAVAILABLE';
+  metadata?: DataMetadata;
 }
 
 export interface SupplyDemandBalance {
@@ -553,8 +667,14 @@ export interface CropEvaluation {
   compositeRiskScore: number; // 0 (Low Risk) - 100 (High Risk)
   confidenceScore: number; // 0 - 100
   isRecommended: boolean;
+  recommendationVerdict: ThreeTierRecommendationVerdict;
+  threeTierVerdict?: ThreeTierRecommendationVerdict;
   ranking: number;
   avoidReason?: string;
+  hardConstraintReason?: string;
+  constraints?: CropConstraintItem[];
+  waterFeasibility?: WaterFeasibilityAnalysis;
+  conditionalManagementPlan?: ConditionalManagementPlan;
   worstScenario: ProfitabilityScenario;
   baseScenario: ProfitabilityScenario;
   bestScenario: ProfitabilityScenario;
@@ -594,7 +714,9 @@ export interface CalculationEngineResult {
   payload: CalculationEnginePayload;
   evaluations: CropEvaluation[];
   recommendedCrops: CropEvaluation[];
+  conditionallyRecommendedCrops: CropEvaluation[];
   cropsToAvoid: CropEvaluation[];
+  dataInsufficientCrops?: CropEvaluation[];
   topAlternativeCrops: CropEvaluation[];
   totalFarmRevenueBaseEstimate: number;
   totalFarmCostA2FLEstimate: number;
@@ -656,3 +778,18 @@ export interface MspNotifiedCropRecord {
   dateOfNotification: string;
   metadata: DataMetadata;
 }
+
+export * from './types/supplyDemand';
+export * from './types/commodityMaster';
+export * from './types/riskEngine';
+export * from './types/confidenceFramework';
+export * from './types/scenarioEngine';
+export * from './types/fpoModel';
+export * from './types/b2bModel';
+export * from './types/governmentModel';
+export * from './types/economicIndicator';
+export * from './types/dataProvenance';
+export * from './types/weather';
+export * from './types/marketIntelligence';
+export * from './types/decisionAssessment';
+
